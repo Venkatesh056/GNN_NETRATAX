@@ -1,97 +1,119 @@
 // ============================================================================
-// Tax Fraud Detection Analytics Page - JavaScript
+// Analytics Page - JavaScript
 // ============================================================================
 
-// Load data on page load
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('Analytics page loaded');
     loadStatistics();
-    loadTopSenders();
-    loadTopReceivers();
+    loadTopSendersChart();
+    loadTopReceiversChart();
 });
 
-// ============================================================================
-// Load Statistics
-// ============================================================================
-
 function loadStatistics() {
+    console.log('Loading statistics...');
     fetch('/api/statistics')
-        .then(response => response.json())
-        .then(stats => {
-            document.getElementById('totalNodes').textContent = stats.total_companies;
-            document.getElementById('totalEdges').textContent = stats.total_edges;
-            document.getElementById('networkDensity').textContent = 
-                (stats.total_edges > 0 ? (2 * stats.total_edges / (stats.total_companies * (stats.total_companies - 1))).toFixed(4) : '0.0000');
-            document.getElementById('avgFraudProb').textContent = 
-                (stats.average_fraud_probability * 100).toFixed(1) + '%';
-
+        .then(response => {
+            console.log('Statistics response:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Statistics data:', data);
+            
+            // Check for errors
+            if (data.error) {
+                console.error('API returned error:', data.error);
+                showError('Error loading statistics: ' + data.error);
+                return;
+            }
+            
+            // Update stat cards
+            if (document.getElementById('totalNodes')) {
+                document.getElementById('totalNodes').textContent = data.total_companies || '-';
+            }
+            if (document.getElementById('totalEdges')) {
+                document.getElementById('totalEdges').textContent = data.total_edges || '-';
+            }
+            if (document.getElementById('networkDensity')) {
+                // Calculate network density (simplified)
+                const density = data.total_edges && data.total_companies > 1 
+                    ? (data.total_edges / (data.total_companies * (data.total_companies - 1) / 2)).toFixed(4)
+                    : '0';
+                document.getElementById('networkDensity').textContent = density;
+            }
+            if (document.getElementById('avgFraudProb')) {
+                const avgProb = data.average_fraud_probability 
+                    ? (data.average_fraud_probability * 100).toFixed(2) + '%'
+                    : '-';
+                document.getElementById('avgFraudProb').textContent = avgProb;
+            }
+            
             // Update risk distribution
-            document.getElementById('highRiskValue').textContent = stats.high_risk_count;
-            document.getElementById('mediumRiskValue').textContent = stats.medium_risk_count;
-            document.getElementById('lowRiskValue').textContent = stats.low_risk_count;
+            if (document.getElementById('highRiskValue')) {
+                document.getElementById('highRiskValue').textContent = data.high_risk_count || 0;
+            }
+            if (document.getElementById('mediumRiskValue')) {
+                document.getElementById('mediumRiskValue').textContent = data.medium_risk_count || 0;
+            }
+            if (document.getElementById('lowRiskValue')) {
+                document.getElementById('lowRiskValue').textContent = data.low_risk_count || 0;
+            }
         })
-        .catch(error => console.error('Error loading statistics:', error));
+        .catch(error => {
+            console.error('Error loading statistics:', error);
+            showError('Failed to load statistics. Check console for details.');
+        });
 }
 
-// ============================================================================
-// Load Top Senders
-// ============================================================================
-
-function loadTopSenders() {
+function loadTopSendersChart() {
+    console.log('Loading top senders chart...');
     fetch('/api/top_senders')
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return response.json();
+        })
         .then(data => {
-            if (data.length > 0) {
-                const companies = data.map(d => `Company #${d.company_id}`);
-                const counts = data.map(d => d.invoice_count);
-
-                const trace = {
-                    x: companies,
-                    y: counts,
-                    type: 'bar',
-                    marker: {color: '#3498db'}
-                };
-
-                const layout = {
-                    title: 'Top 10 Invoice Senders',
-                    xaxis: {title: 'Company ID'},
-                    yaxis: {title: 'Invoice Count'},
-                    margin: {b: 100}
-                };
-
-                Plotly.newPlot('topSendersChart', [trace], layout);
+            console.log('Top senders chart data:', data);
+            if (data.data && data.layout) {
+                Plotly.newPlot('topSendersChart', data.data, data.layout, {responsive: true});
+            } else {
+                console.error('Invalid chart data format');
             }
         })
-        .catch(error => console.error('Error loading top senders:', error));
+        .catch(error => {
+            console.error('Error loading top senders chart:', error);
+            document.getElementById('topSendersChart').innerHTML = '<p style="text-align: center; color: red;">Error loading chart</p>';
+        });
 }
 
-// ============================================================================
-// Load Top Receivers
-// ============================================================================
-
-function loadTopReceivers() {
+function loadTopReceiversChart() {
+    console.log('Loading top receivers chart...');
     fetch('/api/top_receivers')
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return response.json();
+        })
         .then(data => {
-            if (data.length > 0) {
-                const companies = data.map(d => `Company #${d.company_id}`);
-                const counts = data.map(d => d.invoice_count);
-
-                const trace = {
-                    x: companies,
-                    y: counts,
-                    type: 'bar',
-                    marker: {color: '#e74c3c'}
-                };
-
-                const layout = {
-                    title: 'Top 10 Invoice Receivers',
-                    xaxis: {title: 'Company ID'},
-                    yaxis: {title: 'Invoice Count'},
-                    margin: {b: 100}
-                };
-
-                Plotly.newPlot('topReceiversChart', [trace], layout);
+            console.log('Top receivers chart data:', data);
+            if (data.data && data.layout) {
+                Plotly.newPlot('topReceiversChart', data.data, data.layout, {responsive: true});
+            } else {
+                console.error('Invalid chart data format');
             }
         })
-        .catch(error => console.error('Error loading top receivers:', error));
+        .catch(error => {
+            console.error('Error loading top receivers chart:', error);
+            document.getElementById('topReceiversChart').innerHTML = '<p style="text-align: center; color: red;">Error loading chart</p>';
+        });
+}
+
+function showError(message) {
+    // Show error in UI elements
+    ['totalNodes', 'totalEdges', 'networkDensity', 'avgFraudProb', 'highRiskValue', 'mediumRiskValue', 'lowRiskValue'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = 'Error';
+    });
+    console.error(message);
 }

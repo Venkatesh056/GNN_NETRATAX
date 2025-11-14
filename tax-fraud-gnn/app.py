@@ -3,7 +3,8 @@ Flask Web Application for Tax Fraud Detection
 Replace Streamlit with professional HTML/CSS interface
 """
 
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, send_from_directory, Response
+from flask_cors import CORS
 import torch
 import pandas as pd
 import numpy as np
@@ -15,6 +16,7 @@ import plotly.graph_objects as go
 import plotly.express as px
 import json
 import time
+import os
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -26,8 +28,9 @@ from gnn_models.train_gnn import GNNFraudDetector
 from db import init_db, record_upload, list_uploads
 from crypto import encrypt_file
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static', static_url_path='/static')
 app.config['JSON_SORT_KEYS'] = False
+CORS(app)  # Enable CORS for React dev server
 
 # Custom JSON encoder for numpy arrays
 class NumpyEncoder(json.JSONEncoder):
@@ -70,13 +73,18 @@ def load_model_and_data():
     except Exception as e:
         logger.warning(f"Could not load graph with weights_only=False: {e}")
         try:
-            import torch.serialization
             from torch_geometric.data import Data as PyGData
+            import torch.serialization
             torch.serialization.add_safe_globals([PyGData])
             GRAPH_DATA = torch.load(data_path / "graphs" / "graph_data.pt", weights_only=False)
         except Exception as e2:
             logger.error(f"Failed to load graph: {e2}")
-            raise
+            # Try loading without weights_only parameter
+            try:
+                GRAPH_DATA = torch.load(data_path / "graphs" / "graph_data.pt")
+            except Exception as e3:
+                logger.error(f"Failed to load graph with all methods: {e3}")
+                raise
     
     logger.info("Loading model...")
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -178,7 +186,12 @@ def uploads_list():
 
 @app.route("/")
 def home():
-    """Home/Dashboard page"""
+    """Serve React app or fallback to HTML template"""
+    react_build_path = Path(__file__).parent / "static" / "react" / "index.html"
+    if react_build_path.exists():
+        return send_from_directory(str(react_build_path.parent), "index.html")
+    
+    # Fallback to old template if React build doesn't exist
     high_risk_count = (FRAUD_PROBA > 0.5).sum()
     avg_risk = FRAUD_PROBA.mean()
     fraud_count = (COMPANIES["predicted_fraud"] == 1).sum()
@@ -190,25 +203,50 @@ def home():
                          avg_risk=f"{avg_risk:.2%}")
 
 
+# Serve static files (CSS, JS, images) from static folder
+@app.route("/static/<path:path>")
+def serve_static(path):
+    """Serve static files"""
+    return send_from_directory('static', path)
+
+# Serve React assets if React build exists
+@app.route("/assets/<path:path>")
+def serve_react_assets(path):
+    """Serve React static assets (JS, CSS, etc.)"""
+    react_static_path = Path(__file__).parent / "static" / "react" / "assets"
+    if (react_static_path / path).exists():
+        return send_from_directory(str(react_static_path), path)
+    return "Not Found", 404
+
+
 @app.route("/dashboard")
 def dashboard():
-    """Dashboard with analytics"""
+    """Dashboard route - serves React or template"""
+    react_build_path = Path(__file__).parent / "static" / "react" / "index.html"
+    if react_build_path.exists():
+        return send_from_directory(str(react_build_path.parent), "index.html")
+    # Fallback to template
     fraud_dist = COMPANIES["predicted_fraud"].value_counts()
-    
-    return render_template("dashboard.html",
+    return render_template("index.html",
                          total_companies=len(COMPANIES),
                          fraud_count=int(fraud_dist.get(1, 0)))
 
 
 @app.route("/companies")
 def companies():
-    """Companies listing page"""
+    """Companies route - serves React or template"""
+    react_build_path = Path(__file__).parent / "static" / "react" / "index.html"
+    if react_build_path.exists():
+        return send_from_directory(str(react_build_path.parent), "index.html")
     return render_template("companies.html")
 
 
 @app.route("/analytics")
 def analytics():
-    """Analytics page"""
+    """Analytics route - serves React or template"""
+    react_build_path = Path(__file__).parent / "static" / "react" / "index.html"
+    if react_build_path.exists():
+        return send_from_directory(str(react_build_path.parent), "index.html")
     return render_template("analytics.html")
 
 
@@ -298,23 +336,39 @@ def get_company_detail(company_id):
 def get_statistics():
     """API: Get overall statistics"""
     try:
+        # Check if data is loaded
+        if FRAUD_PROBA is None or len(FRAUD_PROBA) == 0:
+            logger.error("FRAUD_PROBA is not initialized")
+            return jsonify({"error": "Model not loaded", "total_companies": 0}), 500
+        
+        if GRAPH_DATA is None:
+            logger.error("GRAPH_DATA is not initialized")
+            return jsonify({"error": "Graph data not loaded", "total_companies": 0}), 500
+        
+        if COMPANIES is None or len(COMPANIES) == 0:
+            logger.error("COMPANIES is not initialized")
+            return jsonify({"error": "Companies data not loaded", "total_companies": 0}), 500
+        
         high_risk = (FRAUD_PROBA > 0.7).sum()
         medium_risk = ((FRAUD_PROBA > 0.3) & (FRAUD_PROBA <= 0.7)).sum()
         low_risk = (FRAUD_PROBA <= 0.3).sum()
         
-        return jsonify({
+        stats = {
             "total_companies": len(COMPANIES),
-            "total_edges": GRAPH_DATA.num_edges,
+            "total_edges": int(GRAPH_DATA.num_edges),
             "high_risk_count": int(high_risk),
             "medium_risk_count": int(medium_risk),
             "low_risk_count": int(low_risk),
             "fraud_count": int((COMPANIES["predicted_fraud"] == 1).sum()),
             "average_fraud_probability": float(np.mean(FRAUD_PROBA))
-        })
+        }
+        
+        logger.info(f"Returning statistics: total_companies={stats['total_companies']}, total_edges={stats['total_edges']}")
+        return jsonify(stats)
     
     except Exception as e:
-        logger.error(f"Error in get_statistics: {e}")
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"Error in get_statistics: {e}", exc_info=True)
+        return jsonify({"error": str(e), "total_companies": 0}), 500
 
 
 @app.route("/api/chart/fraud_distribution")
@@ -383,7 +437,9 @@ def chart_risk_by_location():
         )
         fig.update_layout(height=400)
         
-        return jsonify(fig.to_dict())
+        # Serialize with custom encoder
+        fig_dict = fig.to_dict()
+        return Response(json.dumps(fig_dict, cls=NumpyEncoder), mimetype='application/json')
     
     except Exception as e:
         logger.error(f"Error in chart_risk_by_location: {e}")
@@ -405,31 +461,122 @@ def chart_turnover_vs_risk():
         )
         fig.update_layout(height=400)
         
-        return jsonify(fig.to_dict())
+        # Serialize with custom encoder
+        fig_dict = fig.to_dict()
+        return Response(json.dumps(fig_dict, cls=NumpyEncoder), mimetype='application/json')
     
     except Exception as e:
         logger.error(f"Error in chart_turnover_vs_risk: {e}")
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/top_senders_table")
+def get_top_senders_table():
+    """API: Top invoice senders as table data (JSON)"""
+    try:
+        # Check if seller_id column exists, if not use first column as sender
+        sender_col = "seller_id" if "seller_id" in INVOICES.columns else INVOICES.columns[0]
+        logger.info(f"Using column '{sender_col}' for sellers")
+        
+        top_senders = INVOICES.groupby(sender_col).size().nlargest(10)
+        logger.info(f"Found {len(top_senders)} top senders")
+        
+        data = []
+        for sender_id, count in top_senders.items():
+            sender_id_str = str(sender_id).strip()
+            company = COMPANIES[COMPANIES["company_id"].astype(str) == sender_id_str]
+            if len(company) > 0:
+                fraud_prob = float(company.iloc[0].get('fraud_probability', 0))
+                data.append({
+                    "company_id": sender_id_str,
+                    "invoice_count": int(count),
+                    "fraud_probability": f"{fraud_prob:.2%}"
+                })
+        
+        logger.info(f"Returning {len(data)} senders with matching companies")
+        return jsonify(data)
+    
+    except Exception as e:
+        logger.error(f"Error in get_top_senders_table: {e}", exc_info=True)
+        return jsonify({"error": str(e), "invoices_cols": list(INVOICES.columns)}), 500
+
+
+@app.route("/api/top_receivers_table")
+def get_top_receivers_table():
+    """API: Top invoice receivers as table data (JSON)"""
+    try:
+        # Check if buyer_id column exists, if not use second column as receiver
+        receiver_col = "buyer_id" if "buyer_id" in INVOICES.columns else (INVOICES.columns[1] if len(INVOICES.columns) > 1 else INVOICES.columns[0])
+        logger.info(f"Using column '{receiver_col}' for receivers")
+        
+        top_receivers = INVOICES.groupby(receiver_col).size().nlargest(10)
+        logger.info(f"Found {len(top_receivers)} top receivers")
+        
+        data = []
+        for receiver_id, count in top_receivers.items():
+            receiver_id_str = str(receiver_id).strip()
+            company = COMPANIES[COMPANIES["company_id"].astype(str) == receiver_id_str]
+            if len(company) > 0:
+                fraud_prob = float(company.iloc[0].get('fraud_probability', 0))
+                data.append({
+                    "company_id": receiver_id_str,
+                    "invoice_count": int(count),
+                    "fraud_probability": f"{fraud_prob:.2%}"
+                })
+        
+        logger.info(f"Returning {len(data)} receivers with matching companies")
+        return jsonify(data)
+    
+    except Exception as e:
+        logger.error(f"Error in get_top_receivers_table: {e}", exc_info=True)
+        return jsonify({"error": str(e), "invoices_cols": list(INVOICES.columns)}), 500
+
+
 @app.route("/api/top_senders")
 def get_top_senders():
-    """API: Top invoice senders"""
+    """API: Top invoice senders - returns Plotly chart data"""
     try:
         top_senders = INVOICES.groupby("seller_id").size().nlargest(10)
         
-        data = []
+        company_ids = []
+        counts = []
+        colors = []
+        
         for seller_id, count in top_senders.items():
             seller_id_str = str(seller_id).strip()
             company = COMPANIES[COMPANIES["company_id"].astype(str) == seller_id_str]
             if len(company) > 0:
-                data.append({
-                    "company_id": seller_id_str,
-                    "invoice_count": int(count),
-                    "fraud_probability": f"{float(company.iloc[0]['fraud_probability']):.2%}"
-                })
+                company_ids.append(seller_id_str)
+                counts.append(int(count))
+                # Color based on fraud probability
+                fraud_prob = float(company.iloc[0]['fraud_probability'])
+                if fraud_prob > 0.7:
+                    colors.append('#FF9932')  # Deep Saffron
+                elif fraud_prob > 0.3:
+                    colors.append('#FFC801')  # Forsythia
+                else:
+                    colors.append('#114C5A')  # Nocturnal Expedition
         
-        return jsonify(data)
+        fig = go.Figure(data=[
+            go.Bar(
+                y=counts,
+                x=company_ids,
+                marker=dict(color=colors),
+                text=counts,
+                textposition='auto'
+            )
+        ])
+        fig.update_layout(
+            title="Top 10 Invoice Senders",
+            xaxis_title="Company ID",
+            yaxis_title="Invoice Count",
+            height=400,
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            font=dict(color='#172B36', family='Inter, sans-serif')
+        )
+        
+        return jsonify(fig.to_dict())
     
     except Exception as e:
         logger.error(f"Error in get_top_senders: {e}", exc_info=True)
@@ -438,22 +585,49 @@ def get_top_senders():
 
 @app.route("/api/top_receivers")
 def get_top_receivers():
-    """API: Top invoice receivers"""
+    """API: Top invoice receivers - returns Plotly chart data"""
     try:
         top_receivers = INVOICES.groupby("buyer_id").size().nlargest(10)
         
-        data = []
+        company_ids = []
+        counts = []
+        colors = []
+        
         for buyer_id, count in top_receivers.items():
             buyer_id_str = str(buyer_id).strip()
             company = COMPANIES[COMPANIES["company_id"].astype(str) == buyer_id_str]
             if len(company) > 0:
-                data.append({
-                    "company_id": buyer_id_str,
-                    "invoice_count": int(count),
-                    "fraud_probability": f"{float(company.iloc[0]['fraud_probability']):.2%}"
-                })
+                company_ids.append(buyer_id_str)
+                counts.append(int(count))
+                # Color based on fraud probability
+                fraud_prob = float(company.iloc[0]['fraud_probability'])
+                if fraud_prob > 0.7:
+                    colors.append('#FF9932')  # Deep Saffron
+                elif fraud_prob > 0.3:
+                    colors.append('#FFC801')  # Forsythia
+                else:
+                    colors.append('#114C5A')  # Nocturnal Expedition
         
-        return jsonify(data)
+        fig = go.Figure(data=[
+            go.Bar(
+                y=counts,
+                x=company_ids,
+                marker=dict(color=colors),
+                text=counts,
+                textposition='auto'
+            )
+        ])
+        fig.update_layout(
+            title="Top 10 Invoice Receivers",
+            xaxis_title="Company ID",
+            yaxis_title="Invoice Count",
+            height=400,
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            font=dict(color='#172B36', family='Inter, sans-serif')
+        )
+        
+        return jsonify(fig.to_dict())
     
     except Exception as e:
         logger.error(f"Error in get_top_receivers: {e}", exc_info=True)
