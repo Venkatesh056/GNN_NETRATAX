@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics - Tax Fraud Detection</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="navbar-container">
+            <div class="navbar-brand">
+                <h1>🚨 Tax Fraud Detection</h1>
+                <p>Graph Neural Network-based Analysis</p>
+            </div>
+            <ul class="navbar-menu">
+                <li><a href="/" class="nav-link">Dashboard</a></li>
+                <li><a href="/companies" class="nav-link">Companies</a></li>
+                <li><a href="/analytics" class="nav-link active">Analytics</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h2>📊 Network Analytics</h2>
+            <p>Transaction network analysis and pattern detection</p>
+        </div>
+
+        <!-- Key Statistics -->
+        <div class="analytics-stats">
+            <div class="stat-card">
+                <h4>Total Nodes</h4>
+                <p class="stat-number" id="totalNodes">-</p>
+            </div>
+            <div class="stat-card">
+                <h4>Total Edges</h4>
+                <p class="stat-number" id="totalEdges">-</p>
+            </div>
+            <div class="stat-card">
+                <h4>Network Density</h4>
+                <p class="stat-number" id="networkDensity">-</p>
+            </div>
+            <div class="stat-card">
+                <h4>Avg. Fraud Prob.</h4>
+                <p class="stat-number" id="avgFraudProb">-</p>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="charts-row">
+            <div class="chart-container">
+                <h3>Top 10 Invoice Senders</h3>
+                <div id="topSendersChart" style="height: 400px;"></div>
+            </div>
+
+            <div class="chart-container">
+                <h3>Top 10 Invoice Receivers</h3>
+                <div id="topReceiversChart" style="height: 400px;"></div>
+            </div>
+        </div>
+
+        <!-- Risk Distribution -->
+        <div class="charts-row">
+            <div class="chart-container full-width">
+                <h3>Risk Level Distribution</h3>
+                <div class="risk-distribution">
+                    <div class="risk-item">
+                        <span class="risk-badge high">HIGH RISK</span>
+                        <p class="risk-value" id="highRiskValue">-</p>
+                    </div>
+                    <div class="risk-item">
+                        <span class="risk-badge medium">MEDIUM RISK</span>
+                        <p class="risk-value" id="mediumRiskValue">-</p>
+                    </div>
+                    <div class="risk-item">
+                        <span class="risk-badge low">LOW RISK</span>
+                        <p class="risk-value" id="lowRiskValue">-</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Information Panel -->
+        <div class="info-panel">
+            <h3>💡 About GNN-Based Fraud Detection</h3>
+            <div class="info-content">
+                <p>
+                    <strong>How the Model Works:</strong>
+                </p>
+                <ul>
+                    <li><strong>Node Features:</strong> Company turnover, invoice sent/received counts</li>
+                    <li><strong>Edge Features:</strong> Invoice amounts, ITC claimed</li>
+                    <li><strong>Architecture:</strong> Graph Convolutional Network (3 layers)</li>
+                    <li><strong>Detection:</strong> Identifies anomalous patterns in transaction networks</li>
+                </ul>
+
+                <p>
+                    <strong>Fraud Patterns Detected:</strong>
+                </p>
+                <ul>
+                    <li>Shell company networks (rapid creation/dissolution)</li>
+                    <li>Circular invoice chains (money laundering)</li>
+                    <li>Disproportionate ITC claims</li>
+                    <li>Unusual transaction patterns</li>
+                    <li>Connected fraud rings</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p>&copy; 2025 Tax Fraud Detection System | SIH Project | Powered by Graph Neural Networks</p>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/analytics.js') }}"></script>
+</body>
+</html>

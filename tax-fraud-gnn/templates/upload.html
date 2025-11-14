@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Upload Data</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="navbar-container">
+      <div class="navbar-brand">
+        <h1>Upload Data</h1>
+      </div>
+      <ul class="navbar-menu">
+        <li><a href="/" class="nav-link">Dashboard</a></li>
+        <li><a href="/companies" class="nav-link">Companies</a></li>
+        <li><a href="/analytics" class="nav-link">Analytics</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <div class="container">
+    <h2>Upload CSV (companies or invoices)</h2>
+    <form id="uploadForm" method="post" enctype="multipart/form-data" action="/api/upload_data">
+      <label for="uploader">Uploader name (optional)</label>
+      <input type="text" id="uploader" name="uploader" />
+      <label for="file">Select CSV file</label>
+      <input type="file" id="file" name="file" accept=".csv" />
+  <label for="encrypt"><input type="checkbox" id="encrypt" name="encrypt" /> Encrypt stored file</label>
+      <button type="submit">Upload</button>
+    </form>
+
+    <div id="result"></div>
+  </div>
+
+  <script>
+  document.getElementById('uploadForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const form = document.getElementById('uploadForm');
+    const data = new FormData(form);
+    const resElem = document.getElementById('result');
+    resElem.textContent = 'Uploading...';
+    try {
+      const resp = await fetch('/api/upload_data', {method: 'POST', body: data});
+      const json = await resp.json();
+      if (resp.ok) {
+        const encNote = json.encrypted ? ' (stored encrypted)' : '';
+        resElem.textContent = `Upload successful: ${json.filename} (${json.rows} rows, ${json.columns} cols)${encNote}`;
+      } else {
+        resElem.textContent = `Error: ${json.error}`;
+      }
+    } catch (err) {
+      resElem.textContent = 'Upload failed: ' + err;
+    }
+  });
+  </script>
+</body>
+</html>

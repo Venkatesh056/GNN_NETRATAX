@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tax Fraud Detection Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="navbar-container">
+            <div class="navbar-brand">
+                <h1>🚨 Tax Fraud Detection</h1>
+                <p>Graph Neural Network-based Analysis</p>
+            </div>
+            <ul class="navbar-menu">
+                <li><a href="/" class="nav-link">Dashboard</a></li>
+                <li><a href="/companies" class="nav-link">Companies</a></li>
+                <li><a href="/analytics" class="nav-link">Analytics</a></li>
+                <li><a href="/upload" class="nav-link">Upload</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container">
+        <!-- Dashboard Header -->
+        <div class="dashboard-header">
+            <h2>Overview</h2>
+            <p>Real-time fraud detection statistics and risk analysis</p>
+        </div>
+
+        <!-- Key Metrics -->
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-value">{{ total_companies }}</div>
+                <div class="metric-label">Total Companies</div>
+                <div class="metric-icon">📊</div>
+            </div>
+
+            <div class="metric-card metric-high-risk">
+                <div class="metric-value">{{ high_risk_count }}</div>
+                <div class="metric-label">High-Risk Companies</div>
+                <div class="metric-icon">🔴</div>
+            </div>
+
+            <div class="metric-card metric-fraud">
+                <div class="metric-value">{{ fraud_count }}</div>
+                <div class="metric-label">Predicted Fraud</div>
+                <div class="metric-icon">⚠️</div>
+            </div>
+
+            <div class="metric-card metric-risk">
+                <div class="metric-value">{{ avg_risk }}</div>
+                <div class="metric-label">Average Risk Score</div>
+                <div class="metric-icon">📈</div>
+            </div>
+        </div>
+
+        <!-- Charts Row 1 -->
+        <div class="charts-row">
+            <div class="chart-container">
+                <h3>Fraud Distribution</h3>
+                <div id="fraudDistributionChart" style="height: 400px;"></div>
+            </div>
+
+            <div class="chart-container">
+                <h3>Risk Score Distribution</h3>
+                <div id="riskDistributionChart" style="height: 400px;"></div>
+            </div>
+        </div>
+
+        <!-- Charts Row 2 -->
+        <div class="charts-row">
+            <div class="chart-container full-width">
+                <h3>Risk by Location</h3>
+                <div id="riskByLocationChart" style="height: 400px;"></div>
+            </div>
+        </div>
+
+        <!-- Charts Row 3 -->
+        <div class="charts-row">
+            <div class="chart-container full-width">
+                <h3>Company Turnover vs Fraud Risk</h3>
+                <div id="turnoverVsRiskChart" style="height: 400px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p>&copy; 2025 Tax Fraud Detection System | SIH Project | Powered by Graph Neural Networks</p>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+</body>
+</html>
