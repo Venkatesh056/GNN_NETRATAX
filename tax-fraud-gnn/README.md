@@ -11,6 +11,7 @@ This project applies **Graph Neural Networks (GNNs)** to detect fraudulent tax p
 3. **Train a GNN model** to classify companies as fraudulent or legitimate
 4. **Deploy an interactive dashboard** for tax auditors to identify high-risk companies
 5. **Provide REST API** for integration with existing systems
+6. **Integrate AI Chatbot** for conversational fraud analysis
 
 ---
 
@@ -48,6 +49,7 @@ tax-fraud-gnn/
 │       └── app.py                # Flask REST API
 ├── dashboard/
 │   └── app.py                    # Streamlit interactive dashboard
+├── chatbot.py                    # AI Chatbot for conversational analysis
 ├── requirements.txt              # Python dependencies
 └── README.md                     # This file
 ```
@@ -85,6 +87,12 @@ pip install -r requirements.txt
 ```
 
 **Note:** If you get PyTorch Geometric errors, visit [pyg.org](https://pytorch-geometric.readthedocs.io/en/latest/install/installation.html) for OS-specific installation.
+
+### Step 4: Install Chatbot Dependencies
+
+```bash
+pip install -r chatbot_requirements.txt
+```
 
 ---
 
@@ -203,6 +211,29 @@ python app.py
 - `GET /api/stats` - Overall statistics
 
 API runs on: `http://localhost:5000`
+
+---
+
+### Phase 6: AI Chatbot
+
+Launch the AI-powered chatbot for conversational fraud analysis:
+
+```bash
+# Windows
+start_chatbot.bat
+
+# Linux/Mac
+./start_chatbot.sh
+```
+
+**Features:**
+- 🤖 Conversational interface for GST data analysis
+- 📊 Real-time insights on companies and invoices
+- ⚠️ Fraud pattern identification
+- 💰 ITC claim analysis
+- 📍 Location-based fraud detection
+
+Chatbot runs on: `http://localhost:8501` (different port than dashboard)
 
 ---
 

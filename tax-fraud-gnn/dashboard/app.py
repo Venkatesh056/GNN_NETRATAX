@@ -27,43 +27,55 @@ def load_data_and_model():
     data_path = Path(__file__).parent.parent / "data" / "processed"
     models_path = Path(__file__).parent.parent / "models"
     
-    # Load data
-    companies = pd.read_csv(data_path / "companies_processed.csv")
-    invoices = pd.read_csv(data_path / "invoices_processed.csv")
-    
-    # Load graph
-    graph_data = torch.load(data_path / "graphs" / "graph_data.pt")
-    
-    # Load model
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = GNNFraudDetector(in_channels=3, hidden_channels=64, out_channels=2, model_type="gcn").to(device)
     try:
-        model.load_state_dict(torch.load(models_path / "best_model.pt", map_location=device))
-    except:
-        st.warning("Model weights not found. Using untrained model.")
-    
-    # Load node mappings
-    with open(data_path / "graphs" / "node_mappings.pkl", "rb") as f:
-        mappings = pickle.load(f)
-    
-    return companies, invoices, graph_data, model, device, mappings
+        # Load data
+        companies = pd.read_csv(data_path / "companies_processed.csv")
+        invoices = pd.read_csv(data_path / "invoices_processed.csv")
+        
+        # Load graph
+        graph_data = torch.load(data_path / "graphs" / "graph_data.pt")
+        
+        # Load model
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        model = GNNFraudDetector(in_channels=3, hidden_channels=64, out_channels=2, model_type="gcn").to(device)
+        try:
+            model.load_state_dict(torch.load(models_path / "best_model.pt", map_location=device))
+        except:
+            st.warning("Model weights not found. Using untrained model.")
+        
+        # Load node mappings
+        with open(data_path / "graphs" / "node_mappings.pkl", "rb") as f:
+            mappings = pickle.load(f)
+        
+        return companies, invoices, graph_data, model, device, mappings
+    except Exception as e:
+        st.error(f"Error loading data: {e}")
+        st.exception(e)
+        # Return empty dataframes to prevent crashes
+        return pd.DataFrame(), pd.DataFrame(), None, None, None, {}
 
 
 def get_fraud_predictions(model, graph_data, device):
     """Get fraud predictions from model"""
-    model.eval()
-    with torch.no_grad():
-        out = model(graph_data.x.to(device), graph_data.edge_index.to(device))
-        predictions = torch.softmax(out, dim=1)
-        fraud_proba = predictions[:, 1].cpu().numpy()
-    return fraud_proba
+    if model is None or graph_data is None or device is None:
+        return np.array([])
+    try:
+        model.eval()
+        with torch.no_grad():
+            out = model(graph_data.x.to(device), graph_data.edge_index.to(device))
+            predictions = torch.softmax(out, dim=1)
+            fraud_proba = predictions[:, 1].cpu().numpy()
+        return fraud_proba
+    except Exception as e:
+        st.error(f"Error getting fraud predictions: {e}")
+        return np.array([])
 
 
 # ============================================================================
 # MAIN APP
 # ============================================================================
 
-st.title("🚨 Tax Fraud Detection Dashboard")
+st.title("Tax Fraud Detection Dashboard")
 st.markdown("Graph Neural Network-based fraud detection for invoice networks")
 
 # Load data
@@ -71,15 +83,19 @@ companies, invoices, graph_data, model, device, mappings = load_data_and_model()
 fraud_proba = get_fraud_predictions(model, graph_data, device)
 
 # Add predictions to companies dataframe
-companies["fraud_probability"] = fraud_proba
-companies["predicted_fraud"] = (fraud_proba > 0.5).astype(int)
+if len(companies) > 0 and len(fraud_proba) > 0:
+    companies["fraud_probability"] = fraud_proba
+    companies["predicted_fraud"] = (fraud_proba > 0.5).astype(int)
+elif len(companies) > 0:
+    companies["fraud_probability"] = 0.0
+    companies["predicted_fraud"] = 0
 
 # ============================================================================
 # SIDEBAR FILTERS
 # ============================================================================
 
 with st.sidebar:
-    st.header("🎯 Filters")
+    st.header("Filters")
     
     risk_threshold = st.slider(
         "Fraud Risk Threshold",
@@ -106,7 +122,7 @@ with st.sidebar:
 # MAIN CONTENT
 # ============================================================================
 
-tab1, tab2, tab3, tab4 = st.tabs(["📊 Overview", "🔍 Detailed Analysis", "⚠️ Risk Scoring", "📈 Network Insights"])
+tab1, tab2, tab3, tab4 = st.tabs([" Overview", "Detailed Analysis", " Risk Scoring", "Network Insights"])
 
 # ============================================================================
 # TAB 1: OVERVIEW
@@ -253,7 +269,7 @@ with tab2:
         
         with col2:
             st.metric("Fraud Probability", f"{company['fraud_probability']:.2%}")
-            st.metric("Predicted Status", "🚨 FRAUD" if company["predicted_fraud"] == 1 else "✅ Normal")
+            st.metric("Predicted Status", " FRAUD" if company["predicted_fraud"] == 1 else "Normal")
         
         with col3:
             st.metric("Turnover", f"₹{company['turnover']:.2f}")
@@ -332,7 +348,7 @@ with tab3:
 # ============================================================================
 
 with tab4:
-    st.header("Network Analysis")
+    st.header("🌐 Network Analysis")
     
     st.markdown("""
     ### Graph-Level Insights
@@ -340,53 +356,242 @@ with tab4:
     These metrics are calculated from the transaction network structure.
     """)
     
-    col1, col2, col3 = st.columns(3)
+    # Debug: Show data status
+    with st.expander("🔍 Debug Information", expanded=False):
+        st.write(f"Invoices shape: {invoices.shape if invoices is not None else 'None'}")
+        st.write(f"Invoices columns: {list(invoices.columns) if invoices is not None and len(invoices) > 0 else 'No data'}")
+        st.write(f"Graph data nodes: {graph_data.num_nodes if graph_data is not None else 'None'}")
+        st.write(f"Graph data edges: {graph_data.num_edges if graph_data is not None else 'None'}")
+    
+    col1, col2, col3, col4 = st.columns(4)
     
     # Load graph stats if available
-    with col1:
-        st.metric("Total Nodes", graph_data.num_nodes)
-    
-    with col2:
-        st.metric("Total Edges", graph_data.num_edges)
-    
-    with col3:
-        density = (2 * graph_data.num_edges) / (graph_data.num_nodes * (graph_data.num_nodes - 1))
-        st.metric("Network Density", f"{density:.4f}")
+    try:
+        with col1:
+            st.metric("Total Nodes", graph_data.num_nodes)
+        
+        with col2:
+            st.metric("Total Edges", graph_data.num_edges)
+        
+        with col3:
+            if graph_data.num_nodes > 1:
+                density = (2 * graph_data.num_edges) / (graph_data.num_nodes * (graph_data.num_nodes - 1))
+            else:
+                density = 0.0
+            st.metric("Network Density", f"{density:.4f}")
+        
+        with col4:
+            avg_degree = (2 * graph_data.num_edges) / graph_data.num_nodes if graph_data.num_nodes > 0 else 0
+            st.metric("Avg. Degree", f"{avg_degree:.2f}")
+    except Exception as e:
+        st.error(f"Error loading graph statistics: {e}")
+        st.exception(e)
     
     st.divider()
     
     # Invoice pattern analysis
-    st.subheader("Invoice Pattern Analysis")
+    st.subheader("📊 Invoice Pattern Analysis")
     
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        # Top senders
-        top_senders = invoices.groupby("seller_id").size().nlargest(10)
-        fig = go.Figure(data=[
-            go.Bar(y=top_senders.values, x=top_senders.index, marker=dict(color="steelblue"))
-        ])
-        fig.update_layout(
-            title="Top 10 Invoice Senders",
-            xaxis_title="Company ID",
-            yaxis_title="Invoice Count",
-            height=400
-        )
-        st.plotly_chart(fig, use_container_width=True)
-    
-    with col2:
-        # Top recipients
-        top_recipients = invoices.groupby("buyer_id").size().nlargest(10)
-        fig = go.Figure(data=[
-            go.Bar(y=top_recipients.values, x=top_recipients.index, marker=dict(color="coral"))
-        ])
-        fig.update_layout(
-            title="Top 10 Invoice Recipients",
-            xaxis_title="Company ID",
-            yaxis_title="Invoice Count",
-            height=400
-        )
-        st.plotly_chart(fig, use_container_width=True)
+    # Check if invoices data is available
+    if invoices is None or len(invoices) == 0:
+        st.error("❌ No invoice data available. Please check data loading.")
+    elif "seller_id" not in invoices.columns or "buyer_id" not in invoices.columns:
+        st.error(f"❌ Missing required columns. Available columns: {list(invoices.columns)}")
+    else:
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.write("**Top 10 Invoice Senders**")
+            try:
+                # Group by seller_id and get counts
+                sender_counts = invoices.groupby("seller_id").size().sort_values(ascending=False)
+                top_senders = sender_counts.head(10)
+                
+                if len(top_senders) > 0:
+                    # Convert to lists for Plotly
+                    sender_ids = [str(x) for x in top_senders.index.tolist()]
+                    counts = top_senders.values.tolist()
+                    
+                    # Create bar chart
+                    fig = go.Figure()
+                    fig.add_trace(go.Bar(
+                        x=sender_ids,
+                        y=counts,
+                        marker=dict(
+                            color="steelblue",
+                            line=dict(color="darkblue", width=1)
+                        ),
+                        text=counts,
+                        textposition='outside',
+                        textfont=dict(size=10)
+                    ))
+                    fig.update_layout(
+                        title="Top 10 Invoice Senders",
+                        xaxis_title="Company ID",
+                        yaxis_title="Invoice Count",
+                        height=400,
+                        showlegend=False,
+                        xaxis=dict(tickangle=-45, tickfont=dict(size=9)),
+                        yaxis=dict(range=[0, max(counts) * 1.15] if counts else [0, 10]),
+                        margin=dict(b=100, l=60, r=20, t=60)
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.warning("⚠️ No sender data found after grouping")
+                    st.info(f"Total invoices: {len(invoices)}, Unique sellers: {invoices['seller_id'].nunique()}")
+            except Exception as e:
+                st.error(f"❌ Error creating top senders chart: {e}")
+                st.exception(e)
+        
+        with col2:
+            st.write("**Top 10 Invoice Recipients**")
+            try:
+                # Group by buyer_id and get counts
+                recipient_counts = invoices.groupby("buyer_id").size().sort_values(ascending=False)
+                top_recipients = recipient_counts.head(10)
+                
+                if len(top_recipients) > 0:
+                    # Convert to lists for Plotly
+                    recipient_ids = [str(x) for x in top_recipients.index.tolist()]
+                    counts = top_recipients.values.tolist()
+                    
+                    # Create bar chart
+                    fig = go.Figure()
+                    fig.add_trace(go.Bar(
+                        x=recipient_ids,
+                        y=counts,
+                        marker=dict(
+                            color="coral",
+                            line=dict(color="darkred", width=1)
+                        ),
+                        text=counts,
+                        textposition='outside',
+                        textfont=dict(size=10)
+                    ))
+                    fig.update_layout(
+                        title="Top 10 Invoice Recipients",
+                        xaxis_title="Company ID",
+                        yaxis_title="Invoice Count",
+                        height=400,
+                        showlegend=False,
+                        xaxis=dict(tickangle=-45, tickfont=dict(size=9)),
+                        yaxis=dict(range=[0, max(counts) * 1.15] if counts else [0, 10]),
+                        margin=dict(b=100, l=60, r=20, t=60)
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.warning("⚠️ No recipient data found after grouping")
+                    st.info(f"Total invoices: {len(invoices)}, Unique buyers: {invoices['buyer_id'].nunique()}")
+            except Exception as e:
+                st.error(f"❌ Error creating top recipients chart: {e}")
+                st.exception(e)
+        
+        st.divider()
+        
+        # Additional network insights
+        st.subheader("🔍 Network Insights")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            try:
+                # Transaction amount analysis
+                if "amount" in invoices.columns and len(invoices) > 0:
+                    amount_stats = invoices["amount"].describe()
+                    fig = go.Figure(data=[
+                        go.Box(
+                            y=invoices["amount"],
+                            name="Transaction Amounts",
+                            marker=dict(color="lightblue")
+                        )
+                    ])
+                    fig.update_layout(
+                        title="Transaction Amount Distribution",
+                        yaxis_title="Amount (₹)",
+                        height=400
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.info("Amount data not available")
+            except Exception as e:
+                st.error(f"Error creating amount distribution chart: {e}")
+        
+        with col2:
+            try:
+                # Invoice count over time (if date column exists)
+                if "date" in invoices.columns and len(invoices) > 0:
+                    invoices["date"] = pd.to_datetime(invoices["date"], errors='coerce')
+                    invoices_by_date = invoices.groupby(invoices["date"].dt.to_period("M")).size()
+                    fig = go.Figure(data=[
+                        go.Scatter(
+                            x=invoices_by_date.index.astype(str),
+                            y=invoices_by_date.values,
+                            mode='lines+markers',
+                            marker=dict(color="green", size=8),
+                            line=dict(width=2)
+                        )
+                    ])
+                    fig.update_layout(
+                        title="Invoice Count Over Time",
+                        xaxis_title="Month",
+                        yaxis_title="Number of Invoices",
+                        height=400
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    # Show fraud risk distribution in network
+                    if len(companies) > 0 and "fraud_probability" in companies.columns:
+                        fig = go.Figure(data=[
+                            go.Histogram(
+                                x=companies["fraud_probability"],
+                                nbinsx=20,
+                                marker=dict(color="red", opacity=0.7)
+                            )
+                        ])
+                        fig.update_layout(
+                            title="Fraud Risk Distribution in Network",
+                            xaxis_title="Fraud Probability",
+                            yaxis_title="Number of Companies",
+                            height=400
+                        )
+                        st.plotly_chart(fig, use_container_width=True)
+                    else:
+                        st.info("Time series or risk data not available")
+            except Exception as e:
+                st.error(f"Error creating time series chart: {e}")
+        
+        st.divider()
+        
+        # Network statistics table
+        st.subheader("📈 Network Statistics Summary")
+        
+        try:
+            stats_data = {
+                "Metric": [
+                    "Total Companies (Nodes)",
+                    "Total Transactions (Edges)",
+                    "Network Density",
+                    "Average Connections per Node",
+                    "Total Invoices",
+                    "Average Invoice Amount",
+                    "High-Risk Companies",
+                    "Fraud Detection Rate"
+                ],
+                "Value": [
+                    f"{graph_data.num_nodes:,}",
+                    f"{graph_data.num_edges:,}",
+                    f"{(2 * graph_data.num_edges) / (graph_data.num_nodes * (graph_data.num_nodes - 1)):.4f}" if graph_data.num_nodes > 1 else "0.0000",
+                    f"{(2 * graph_data.num_edges) / graph_data.num_nodes:.2f}" if graph_data.num_nodes > 0 else "0.00",
+                    f"{len(invoices):,}" if len(invoices) > 0 else "0",
+                    f"₹{invoices['amount'].mean():,.2f}" if "amount" in invoices.columns and len(invoices) > 0 else "N/A",
+                    f"{(companies['fraud_probability'] > 0.5).sum():,}" if "fraud_probability" in companies.columns else "N/A",
+                    f"{((companies['fraud_probability'] > 0.5).sum() / len(companies) * 100):.2f}%" if "fraud_probability" in companies.columns and len(companies) > 0 else "N/A"
+                ]
+            }
+            stats_df = pd.DataFrame(stats_data)
+            st.dataframe(stats_df, use_container_width=True, hide_index=True)
+        except Exception as e:
+            st.error(f"Error creating statistics table: {e}")
 
 # ============================================================================
 # FOOTER

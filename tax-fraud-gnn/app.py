@@ -4,7 +4,6 @@ Replace Streamlit with professional HTML/CSS interface
 """
 
 from flask import Flask, render_template, request, jsonify, send_from_directory, Response
-from flask_cors import CORS
 import torch
 import pandas as pd
 import numpy as np
@@ -17,16 +16,32 @@ import plotly.express as px
 import json
 import time
 import os
+import networkx as nx
+from collections import deque
+import torch.nn as nn
+from flask_cors import CORS
+from torch_geometric.data import Data  # Add this import
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Add src to path
-sys.path.insert(0, str(Path(__file__).parent / "src"))
-from gnn_models.train_gnn import GNNFraudDetector
-from db import init_db, record_upload, list_uploads
-from crypto import encrypt_file
+sys.path.insert(0, str(Path(__file__).parent))
+
+# Import modules with error handling
+GNNFraudDetector = None
+init_db = None
+record_upload = None
+list_uploads = None
+encrypt_file = None
+
+try:
+    from src.gnn_models.train_gnn import GNNFraudDetector
+    from src.db import init_db, record_upload, list_uploads
+    from src.crypto import encrypt_file
+except ImportError as e:
+    logger.error(f"Import error: {e}")
 
 app = Flask(__name__, static_folder='static', static_url_path='/static')
 app.config['JSON_SORT_KEYS'] = False
@@ -34,16 +49,19 @@ CORS(app)  # Enable CORS for React dev server
 
 # Custom JSON encoder for numpy arrays
 class NumpyEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, np.ndarray):
-            return obj.tolist()
-        elif isinstance(obj, np.integer):
-            return int(obj)
-        elif isinstance(obj, np.floating):
-            return float(obj)
-        return super().default(obj)
+    def default(self, o):
+        if isinstance(o, np.ndarray):
+            return o.tolist()
+        elif isinstance(o, np.integer):
+            return int(o)
+        elif isinstance(o, np.floating):
+            return float(o)
+        elif isinstance(o, np.bool_):
+            return bool(o)
+        return super(NumpyEncoder, self).default(o)
 
-app.json_encoder = NumpyEncoder
+# For Flask 2.0+, use json.default instead of json_encoder
+app.json.default = lambda o: NumpyEncoder().default(o)
 
 # Global variables for model and data
 MODEL = None
@@ -53,18 +71,54 @@ COMPANIES = None
 INVOICES = None
 MAPPINGS = None
 FRAUD_PROBA = None
+NETWORKX_GRAPH = None  # Add NetworkX graph for easier manipulation
 
 
 def load_model_and_data():
     """Load model and data on startup"""
-    global MODEL, GRAPH_DATA, DEVICE, COMPANIES, INVOICES, MAPPINGS, FRAUD_PROBA
+    global MODEL, GRAPH_DATA, DEVICE, COMPANIES, INVOICES, MAPPINGS, FRAUD_PROBA, NETWORKX_GRAPH
     
     data_path = Path(__file__).parent / "data" / "processed"
     models_path = Path(__file__).parent / "models"
+    uploads_path = Path(__file__).parent / "data" / "uploads"
     
     logger.info("Loading data...")
-    COMPANIES = pd.read_csv(data_path / "companies_processed.csv")
-    INVOICES = pd.read_csv(data_path / "invoices_processed.csv")
+    
+    # Try to load from uploads folder first (most recent data)
+    companies_file = None
+    invoices_file = None
+    
+    # Find the most recent upload folder
+    if uploads_path.exists():
+        upload_folders = sorted([d for d in uploads_path.iterdir() if d.is_dir()], reverse=True)
+        for upload_folder in upload_folders:
+            companies_csv = upload_folder / "companies.csv"
+            invoices_csv = upload_folder / "invoices.csv"
+            if companies_csv.exists() and companies_file is None:
+                companies_file = companies_csv
+                logger.info(f"Found companies.csv in uploads: {companies_csv}")
+            if invoices_csv.exists() and invoices_file is None:
+                invoices_file = invoices_csv
+                logger.info(f"Found invoices.csv in uploads: {invoices_csv}")
+            if companies_file and invoices_file:
+                break
+    
+    # Fallback to processed data if not found in uploads
+    if companies_file is None:
+        companies_file = data_path / "companies_processed.csv"
+        if not companies_file.exists():
+            companies_file = data_path.parent / "raw" / "companies.csv"
+        logger.info(f"Loading companies from: {companies_file}")
+    
+    if invoices_file is None:
+        invoices_file = data_path / "invoices_processed.csv"
+        if not invoices_file.exists():
+            invoices_file = data_path.parent / "raw" / "invoices.csv"
+        logger.info(f"Loading invoices from: {invoices_file}")
+    
+    COMPANIES = pd.read_csv(companies_file)
+    INVOICES = pd.read_csv(invoices_file)
+    logger.info(f"Loaded {len(COMPANIES)} companies and {len(INVOICES)} invoices")
     
     logger.info("Loading graph...")
     # Handle PyTorch 2.6+ safe_globals for torch_geometric
@@ -86,6 +140,15 @@ def load_model_and_data():
                 logger.error(f"Failed to load graph with all methods: {e3}")
                 raise
     
+    # Load NetworkX graph for easier manipulation
+    try:
+        with open(data_path / "graphs" / "networkx_graph.gpickle", "rb") as f:
+            NETWORKX_GRAPH = pickle.load(f)
+        logger.info("Loaded NetworkX graph")
+    except Exception as e:
+        logger.warning(f"Could not load NetworkX graph: {e}")
+        NETWORKX_GRAPH = nx.DiGraph()
+    
     logger.info("Loading model...")
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     MODEL = GNNFraudDetector(in_channels=3, hidden_channels=64, out_channels=2, model_type="gcn").to(DEVICE)
@@ -105,6 +168,21 @@ def load_model_and_data():
         out = MODEL(GRAPH_DATA.x.to(DEVICE), GRAPH_DATA.edge_index.to(DEVICE))
         predictions = torch.softmax(out, dim=1)
         FRAUD_PROBA = predictions[:, 1].cpu().numpy()
+    
+    # Handle mismatch between companies data and graph nodes
+    # This can happen when companies data has been updated but graph hasn't been rebuilt
+    if len(COMPANIES) != len(FRAUD_PROBA):
+        logger.warning(f"Length mismatch: Companies ({len(COMPANIES)}) vs Fraud probabilities ({len(FRAUD_PROBA)})")
+        if len(COMPANIES) > len(FRAUD_PROBA):
+            # More companies than graph nodes - truncate companies to match
+            logger.info(f"Truncating companies data from {len(COMPANIES)} to {len(FRAUD_PROBA)} rows")
+            COMPANIES = COMPANIES.iloc[:len(FRAUD_PROBA)]
+        else:
+            # More graph nodes than companies - pad fraud probabilities with zeros
+            logger.info(f"Padding fraud probabilities from {len(FRAUD_PROBA)} to {len(COMPANIES)} elements")
+            padded_fraud_proba = np.zeros(len(COMPANIES))
+            padded_fraud_proba[:len(FRAUD_PROBA)] = FRAUD_PROBA
+            FRAUD_PROBA = padded_fraud_proba
     
     COMPANIES["fraud_probability"] = FRAUD_PROBA
     COMPANIES["predicted_fraud"] = (FRAUD_PROBA > 0.5).astype(int)
@@ -161,12 +239,529 @@ def upload_data():
 
         # Record to DB (include encrypted flag)
         record_upload(fname, stored_path, uploader=request.form.get('uploader', 'anonymous'), filetype='csv', rows=int(rows), columns=int(cols), encrypted=encrypted)
+        
+        # Process the uploaded CSV for incremental learning
+        incremental_results = None
+        try:
+            logger.info(f"Starting incremental learning for file: {fname}")
+            incremental_results = process_incremental_learning(save_path, fname)
+            logger.info(f"Incremental learning completed for file: {fname}")
+        except Exception as e:
+            logger.error(f"Incremental learning failed for {fname}: {e}", exc_info=True)
+            # Don't fail the upload if incremental learning fails
+            pass
 
-        return jsonify({'status': 'ok', 'filename': fname, 'rows': int(rows), 'columns': int(cols), 'encrypted': bool(encrypted)})
+        response_data = {
+            'status': 'ok', 
+            'filename': fname, 
+            'rows': int(rows), 
+            'columns': int(cols), 
+            'encrypted': bool(encrypted)
+        }
+        
+        # Add incremental learning results if available
+        if incremental_results:
+            response_data['incremental_learning'] = incremental_results
+            
+        return jsonify(response_data)
 
     except Exception as e:
         logger.error(f"Upload failed: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
+
+
+def process_incremental_learning(file_path, filename):
+    """
+    Process uploaded CSV for incremental learning
+    """
+    global COMPANIES, INVOICES, NETWORKX_GRAPH
+    
+    logger.info(f"Starting incremental learning for {filename}")
+    
+    # Load the uploaded data
+    df = pd.read_csv(file_path)
+    
+    # Determine if it's companies or invoices data
+    new_companies_df = pd.DataFrame()
+    new_invoices_df = pd.DataFrame()
+    
+    if "company_id" in df.columns:
+        # Companies data
+        logger.info("Processing companies data...")
+        new_companies_df = df.copy()
+        # Apply basic cleaning (similar to clean_data.py)
+        if "turnover" not in new_companies_df.columns:
+            new_companies_df["turnover"] = 0
+        if "location" not in new_companies_df.columns:
+            new_companies_df["location"] = "Unknown"
+        if "is_fraud" not in new_companies_df.columns:
+            new_companies_df["is_fraud"] = 0
+            
+        # Ensure correct data types
+        new_companies_df["company_id"] = new_companies_df["company_id"].astype(str).str.strip()
+        new_companies_df["turnover"] = pd.to_numeric(new_companies_df["turnover"], errors='coerce').fillna(0)
+        new_companies_df["is_fraud"] = pd.to_numeric(new_companies_df["is_fraud"], errors='coerce').fillna(0).astype(int)
+    elif "seller_id" in df.columns and "buyer_id" in df.columns:
+        # Invoices data
+        logger.info("Processing invoices data...")
+        new_invoices_df = df.copy()
+        # Apply basic cleaning
+        if "amount" not in new_invoices_df.columns:
+            new_invoices_df["amount"] = 0
+        if "itc_claimed" not in new_invoices_df.columns:
+            new_invoices_df["itc_claimed"] = 0
+            
+        # Ensure correct data types
+        new_invoices_df["seller_id"] = new_invoices_df["seller_id"].astype(str).str.strip()
+        new_invoices_df["buyer_id"] = new_invoices_df["buyer_id"].astype(str).str.strip()
+        new_invoices_df["amount"] = pd.to_numeric(new_invoices_df["amount"], errors='coerce').fillna(0)
+        new_invoices_df["itc_claimed"] = pd.to_numeric(new_invoices_df["itc_claimed"], errors='coerce').fillna(0)
+    else:
+        logger.warning(f"Unknown data format in {filename}")
+        return
+    
+    # If we have invoices but no companies data, we need to extract company info
+    if not new_companies_df.empty and new_invoices_df.empty:
+        # Companies data only - need to engineer features
+        logger.info("Engineering features for new companies...")
+        # Simple feature engineering for new companies
+        new_companies_df["sent_invoice_count"] = 0
+        new_companies_df["received_invoice_count"] = 0
+        new_companies_df["total_sent_amount"] = 0
+        new_companies_df["total_received_amount"] = 0
+    elif new_companies_df.empty and not new_invoices_df.empty:
+        # Invoices data only - extract company info
+        logger.info("Extracting company info from invoices...")
+        seller_info = new_invoices_df.groupby("seller_id").agg({
+            "amount": "sum",
+            "invoice_id": "count"
+        }).reset_index()
+        seller_info.columns = ["company_id", "total_sent_amount", "sent_invoice_count"]
+        seller_info["company_id"] = seller_info["company_id"].astype(str)
+        
+        buyer_info = new_invoices_df.groupby("buyer_id").agg({
+            "amount": "sum",
+            "invoice_id": "count"
+        }).reset_index()
+        buyer_info.columns = ["company_id", "total_received_amount", "received_invoice_count"]
+        buyer_info["company_id"] = buyer_info["company_id"].astype(str)
+        
+        # Merge seller and buyer info
+        company_info = pd.merge(seller_info, buyer_info, on="company_id", how="outer").fillna(0)
+        company_info["turnover"] = company_info["total_sent_amount"] + company_info["total_received_amount"]
+        company_info["is_fraud"] = 0  # Default to non-fraud
+        
+        new_companies_df = company_info
+    elif not new_companies_df.empty and not new_invoices_df.empty:
+        # Both companies and invoices - engineer features
+        logger.info("Engineering features for companies with invoices...")
+        # Count invoices sent (seller perspective)
+        seller_counts = new_invoices_df.groupby("seller_id").agg({
+            "amount": "sum",
+            "invoice_id": "count"
+        }).reset_index()
+        seller_counts.columns = ["company_id", "total_sent_amount", "sent_invoice_count"]
+        seller_counts["company_id"] = seller_counts["company_id"].astype(str)
+        
+        # Count invoices received (buyer perspective)
+        buyer_counts = new_invoices_df.groupby("buyer_id").agg({
+            "amount": "sum",
+            "invoice_id": "count"
+        }).reset_index()
+        buyer_counts.columns = ["company_id", "total_received_amount", "received_invoice_count"]
+        buyer_counts["company_id"] = buyer_counts["company_id"].astype(str)
+        
+        # Merge features back to companies
+        new_companies_df = new_companies_df.merge(seller_counts, on="company_id", how="left")
+        new_companies_df = new_companies_df.merge(buyer_counts, on="company_id", how="left")
+        
+        # Fill NaN with 0
+        new_companies_df.fillna(0, inplace=True)
+    
+    # Update graph with new data (without converting company_id to int)
+    NETWORKX_GRAPH, MAPPINGS, nodes_added, edges_added = update_graph(new_companies_df, new_invoices_df)
+    
+    # Identify affected nodes
+    affected_nodes = identify_affected_nodes(new_companies_df, new_invoices_df, k_hop=2)
+    
+    # Extract subgraph
+    subgraph = extract_subgraph(affected_nodes, k_hop=2)
+    
+    # Get subgraph statistics
+    subgraph_nodes = subgraph.number_of_nodes()
+    subgraph_edges = subgraph.number_of_edges()
+    
+    # Identify central nodes (nodes with highest degree)
+    central_nodes = []
+    if subgraph_nodes > 0:
+        node_degrees = [(node, subgraph.degree(node)) for node in subgraph.nodes()]
+        node_degrees.sort(key=lambda x: x[1], reverse=True)
+        central_nodes = [node for node, degree in node_degrees[:min(5, len(node_degrees))]]
+    
+    # Count high-risk nodes in subgraph
+    high_risk_count = 0
+    fraud_node_count = 0
+    if hasattr(subgraph, 'nodes') and len(subgraph.nodes()) > 0:
+        for node in subgraph.nodes():
+            if node in NETWORKX_GRAPH.nodes():
+                node_data = NETWORKX_GRAPH.nodes[node]
+                if 'is_fraud' in node_data and node_data['is_fraud'] == 1:
+                    fraud_node_count += 1
+                # This would be updated after retraining, but we can estimate based on existing data
+    
+    # Convert subgraph to PyTorch Geometric format
+    subgraph_data, _, _ = networkx_to_pytorch_geometric_subgraph(subgraph, MAPPINGS["node_to_idx"])
+    
+    # Perform incremental retraining
+    updated_model_state = incremental_retrain(subgraph_data, epochs=50, lr=0.001)
+    
+    # Update global embeddings
+    update_global_embeddings()
+    
+    # Save updated graph and model
+    save_updated_graph_and_model()
+    
+    logger.info(f"Incremental learning completed successfully - {nodes_added} nodes and {edges_added} edges added")
+    return {
+        "nodes_added": nodes_added,
+        "edges_added": edges_added,
+        "affected_nodes": len(affected_nodes),
+        "subgraph_nodes": subgraph_nodes,
+        "subgraph_edges": subgraph_edges,
+        "central_nodes_count": len(central_nodes),
+        "high_risk_nodes": high_risk_count,
+        "fraud_nodes": fraud_node_count
+    }
+
+
+def update_graph(new_companies_df, new_invoices_df):
+    """
+    Update the existing graph with new nodes and edges from uploaded data
+    Returns updated NetworkX graph and mappings
+    """
+    global NETWORKX_GRAPH, MAPPINGS, COMPANIES, INVOICES
+    
+    logger.info("Updating graph with new data...")
+    
+    # Count initial nodes and edges
+    initial_nodes = NETWORKX_GRAPH.number_of_nodes() if NETWORKX_GRAPH else 0
+    initial_edges = NETWORKX_GRAPH.number_of_edges() if NETWORKX_GRAPH else 0
+    
+    # Update companies data
+    COMPANIES = pd.concat([COMPANIES, new_companies_df], ignore_index=True)
+    COMPANIES = COMPANIES.drop_duplicates(subset=["company_id"], keep="last")
+    
+    # Update invoices data
+    INVOICES = pd.concat([INVOICES, new_invoices_df], ignore_index=True)
+    
+    # Add new nodes to NetworkX graph
+    nodes_added = 0
+    for _, row in new_companies_df.iterrows():
+        try:
+            company_id = row["company_id"]  # Keep as string
+            if company_id not in NETWORKX_GRAPH.nodes():
+                NETWORKX_GRAPH.add_node(
+                    company_id,  # Keep as string
+                    turnover=float(row.get("turnover", 0)),
+                    location=str(row.get("location", "Unknown")),
+                    is_fraud=int(row.get("is_fraud", 0)),
+                    sent_invoices=float(row.get("sent_invoice_count", 0)),
+                    received_invoices=float(row.get("received_invoice_count", 0)),
+                    total_sent_amount=float(row.get("total_sent_amount", 0)),
+                    total_received_amount=float(row.get("total_received_amount", 0))
+                )
+                nodes_added += 1
+        except Exception as e:
+            logger.warning(f"Error adding node {row.get('company_id')}: {e}")
+            continue
+    
+    # Add new edges to NetworkX graph
+    edges_added = 0
+    for _, row in new_invoices_df.iterrows():
+        try:
+            seller = row["seller_id"]  # Keep as string
+            buyer = row["buyer_id"]    # Keep as string
+            
+            # Only add edge if both nodes exist
+            if seller in NETWORKX_GRAPH and buyer in NETWORKX_GRAPH:
+                # Check if edge already exists to avoid duplicates
+                if not NETWORKX_GRAPH.has_edge(seller, buyer):
+                    NETWORKX_GRAPH.add_edge(
+                        seller,
+                        buyer,
+                        amount=float(row.get("amount", 0)),
+                        itc_claimed=float(row.get("itc_claimed", 0))
+                    )
+                    edges_added += 1
+        except Exception as e:
+            logger.warning(f"Error adding edge: {e}")
+            continue
+    
+    # Update mappings
+    node_list = sorted(list(NETWORKX_GRAPH.nodes()))
+    node_to_idx = {node: idx for idx, node in enumerate(node_list)}
+    MAPPINGS = {
+        "node_list": node_list,
+        "node_to_idx": node_to_idx
+    }
+    
+    final_nodes = NETWORKX_GRAPH.number_of_nodes()
+    final_edges = NETWORKX_GRAPH.number_of_edges()
+    
+    logger.info(f"Graph updated: {final_nodes} nodes (+{nodes_added}), {final_edges} edges (+{edges_added})")
+    return NETWORKX_GRAPH, MAPPINGS, nodes_added, edges_added
+
+
+def identify_affected_nodes(new_companies_df, new_invoices_df, k_hop=2):
+    """
+    Identify nodes that are affected by new data (new nodes + neighbors within k-hop)
+    Returns list of affected node IDs
+    """
+    global NETWORKX_GRAPH
+    
+    logger.info("Identifying affected nodes...")
+    
+    # Start with new nodes
+    new_node_ids = set()
+    for _, row in new_companies_df.iterrows():
+        try:
+            new_node_ids.add(row["company_id"])  # Keep as string
+        except:
+            continue
+    
+    # Add nodes connected through new edges
+    for _, row in new_invoices_df.iterrows():
+        try:
+            seller = row["seller_id"]  # Keep as string
+            buyer = row["buyer_id"]    # Keep as string
+            new_node_ids.add(seller)
+            new_node_ids.add(buyer)
+        except:
+            continue
+    
+    # Find k-hop neighbors using BFS
+    affected_nodes = set(new_node_ids)
+    queue = deque([(node, 0) for node in new_node_ids])  # (node, distance)
+    visited = set(new_node_ids)
+    
+    while queue:
+        node, distance = queue.popleft()
+        
+        if distance < k_hop:
+            # Get neighbors (both incoming and outgoing)
+            neighbors = set(NETWORKX_GRAPH.successors(node)) | set(NETWORKX_GRAPH.predecessors(node))
+            
+            for neighbor in neighbors:
+                if neighbor not in visited:
+                    visited.add(neighbor)
+                    affected_nodes.add(neighbor)
+                    queue.append((neighbor, distance + 1))
+    
+    logger.info(f"Identified {len(affected_nodes)} affected nodes within {k_hop}-hop neighborhood")
+    return list(affected_nodes)
+
+
+def extract_subgraph(affected_nodes, k_hop=2):
+    """
+    Extract k-hop subgraph around affected nodes
+    Returns NetworkX subgraph
+    """
+    global NETWORKX_GRAPH
+    
+    logger.info(f"Extracting {k_hop}-hop subgraph for {len(affected_nodes)} nodes...")
+    
+    # Get k-hop neighborhood using BFS
+    subgraph_nodes = set(affected_nodes)
+    queue = deque([(node, 0) for node in affected_nodes])  # (node, distance)
+    visited = set(affected_nodes)
+    
+    while queue:
+        node, distance = queue.popleft()
+        
+        if distance < k_hop:
+            # Get neighbors (both incoming and outgoing)
+            neighbors = set(NETWORKX_GRAPH.successors(node)) | set(NETWORKX_GRAPH.predecessors(node))
+            
+            for neighbor in neighbors:
+                if neighbor not in visited:
+                    visited.add(neighbor)
+                    subgraph_nodes.add(neighbor)
+                    queue.append((neighbor, distance + 1))
+    
+    # Extract subgraph
+    subgraph = NETWORKX_GRAPH.subgraph(subgraph_nodes).copy()
+    logger.info(f"Extracted subgraph with {subgraph.number_of_nodes()} nodes and {subgraph.number_of_edges()} edges")
+    
+    return subgraph
+
+
+def networkx_to_pytorch_geometric_subgraph(G, full_node_to_idx):
+    """
+    Convert NetworkX subgraph to PyTorch Geometric Data object
+    """
+    logger.info("Converting subgraph to PyTorch Geometric format...")
+    
+    # Create node list and feature matrix for subgraph
+    node_list = sorted(list(G.nodes()))
+    node_to_idx = {node: idx for idx, node in enumerate(node_list)}
+    
+    x_list = []
+    y_list = []
+    
+    for node in node_list:
+        node_data = G.nodes[node]
+        features = [
+            node_data.get("turnover", 0),
+            node_data.get("sent_invoices", 0),
+            node_data.get("received_invoices", 0)
+        ]
+        x_list.append(features)
+        y_list.append(node_data.get("is_fraud", 0))
+    
+    x = torch.tensor(x_list, dtype=torch.float32)
+    y = torch.tensor(y_list, dtype=torch.long)
+    
+    logger.info(f"Subgraph node feature matrix shape: {x.shape}")
+    
+    # Create edge indices and attributes
+    edge_index = []
+    edge_attr = []
+    
+    for u, v, data in G.edges(data=True):
+        u_idx = node_to_idx[u]
+        v_idx = node_to_idx[v]
+        edge_index.append([u_idx, v_idx])
+        edge_attr.append([data.get("amount", 0)])
+    
+    if edge_index:
+        edge_index = torch.tensor(edge_index, dtype=torch.long).t().contiguous()
+        edge_attr = torch.tensor(edge_attr, dtype=torch.float32)
+    else:
+        edge_index = torch.zeros((2, 0), dtype=torch.long)
+        edge_attr = torch.zeros((0, 1), dtype=torch.float32)
+    
+    logger.info(f"Subgraph edge index shape: {edge_index.shape}")
+    
+    # Create PyG Data object (without node_ids since they're strings)
+    data = Data(
+        x=x,
+        edge_index=edge_index,
+        edge_attr=edge_attr,
+        y=y
+    )
+    
+    return data, node_list, node_to_idx
+
+
+def incremental_retrain(subgraph_data, epochs=50, lr=0.001):
+    """
+    Retrain model on subgraph data
+    Returns updated model state dict
+    """
+    global MODEL, DEVICE
+    
+    logger.info("Starting incremental retraining on subgraph...")
+    
+    # Move data to device
+    subgraph_data = subgraph_data.to(DEVICE)
+    
+    # Create optimizer (use same parameters as original training)
+    optimizer = torch.optim.Adam(MODEL.parameters(), lr=lr, weight_decay=5e-4)
+    criterion = torch.nn.CrossEntropyLoss()
+    
+    # Set model to training mode
+    MODEL.train()
+    
+    # Train for specified epochs
+    for epoch in range(epochs):
+        optimizer.zero_grad()
+        out = MODEL(subgraph_data.x, subgraph_data.edge_index)
+        loss = criterion(out, subgraph_data.y)
+        loss.backward()
+        optimizer.step()
+        
+        if (epoch + 1) % 10 == 0:
+            logger.info(f"Incremental retraining epoch {epoch+1}/{epochs}, loss: {loss.item():.4f}")
+    
+    # Set model back to eval mode
+    MODEL.eval()
+    
+    logger.info("Incremental retraining completed")
+    return MODEL.state_dict()
+
+
+def update_global_embeddings():
+    """
+    Update global fraud probabilities for all nodes after incremental training
+    """
+    global MODEL, GRAPH_DATA, DEVICE, FRAUD_PROBA, COMPANIES
+    
+    logger.info("Updating global embeddings and fraud probabilities...")
+    
+    # Get updated predictions for all nodes
+    MODEL.eval()
+    with torch.no_grad():
+        out = MODEL(GRAPH_DATA.x.to(DEVICE), GRAPH_DATA.edge_index.to(DEVICE))
+        predictions = torch.softmax(out, dim=1)
+        FRAUD_PROBA = predictions[:, 1].cpu().numpy()
+    
+    # Update COMPANIES dataframe
+    COMPANIES["fraud_probability"] = FRAUD_PROBA
+    COMPANIES["predicted_fraud"] = (FRAUD_PROBA > 0.5).astype(int)
+    
+    logger.info("Global embeddings updated")
+
+
+def save_updated_graph_and_model():
+    """
+    Save updated graph, mappings, and model weights
+    """
+    global GRAPH_DATA, MAPPINGS, MODEL, NETWORKX_GRAPH
+    
+    data_path = Path(__file__).parent / "data" / "processed"
+    models_path = Path(__file__).parent / "models"
+    graph_path = data_path / "graphs"
+    
+    # Ensure the graphs directory exists
+    graph_path.mkdir(parents=True, exist_ok=True)
+    
+    logger.info("Saving updated graph and model...")
+    
+    # Save NetworkX graph using pickle (NetworkX 3.x compatibility)
+    with open(graph_path / "networkx_graph.gpickle", "wb") as f:
+        pickle.dump(NETWORKX_GRAPH, f)
+    logger.info("✓ NetworkX graph saved")
+    
+    # Convert NetworkX graph to PyTorch Geometric and save
+    try:
+        from src.graph_construction.build_graph import GraphBuilder
+        builder = GraphBuilder(str(data_path))  # Pass the correct path
+        pyg_data, node_list, node_to_idx = builder.networkx_to_pytorch_geometric(NETWORKX_GRAPH, COMPANIES)
+        torch.save(pyg_data, graph_path / "graph_data.pt")
+        logger.info("✓ PyTorch Geometric graph saved")
+        
+        # Update global GRAPH_DATA
+        GRAPH_DATA = pyg_data
+        
+        # Save mappings
+        mappings = {
+            "node_list": node_list,
+            "node_to_idx": node_to_idx
+        }
+        with open(graph_path / "node_mappings.pkl", "wb") as f:
+            pickle.dump(mappings, f)
+        logger.info("✓ Node mappings saved")
+        
+        MAPPINGS = mappings
+    except Exception as e:
+        logger.error(f"Error converting/saving PyTorch Geometric graph: {e}")
+    
+    # Save updated model
+    try:
+        torch.save(MODEL.state_dict(), models_path / "best_model.pt")
+        logger.info("✓ Model weights saved")
+    except Exception as e:
+        logger.error(f"Error saving model weights: {e}")
 
 
 @app.route('/uploads')
@@ -186,21 +781,8 @@ def uploads_list():
 
 @app.route("/")
 def home():
-    """Serve React app or fallback to HTML template"""
-    react_build_path = Path(__file__).parent / "static" / "react" / "index.html"
-    if react_build_path.exists():
-        return send_from_directory(str(react_build_path.parent), "index.html")
-    
-    # Fallback to old template if React build doesn't exist
-    high_risk_count = (FRAUD_PROBA > 0.5).sum()
-    avg_risk = FRAUD_PROBA.mean()
-    fraud_count = (COMPANIES["predicted_fraud"] == 1).sum()
-    
-    return render_template("index.html",
-                         total_companies=len(COMPANIES),
-                         high_risk_count=int(high_risk_count),
-                         fraud_count=int(fraud_count),
-                         avg_risk=f"{avg_risk:.2%}")
+    """Serve landing page as default"""
+    return render_template('landing.html')
 
 
 # Serve static files (CSS, JS, images) from static folder
@@ -226,10 +808,15 @@ def dashboard():
     if react_build_path.exists():
         return send_from_directory(str(react_build_path.parent), "index.html")
     # Fallback to template
-    fraud_dist = COMPANIES["predicted_fraud"].value_counts()
+    high_risk_count = (FRAUD_PROBA > 0.5).sum()
+    avg_risk = FRAUD_PROBA.mean()
+    fraud_count = (COMPANIES["predicted_fraud"] == 1).sum()
+    
     return render_template("index.html",
                          total_companies=len(COMPANIES),
-                         fraud_count=int(fraud_dist.get(1, 0)))
+                         high_risk_count=int(high_risk_count),
+                         fraud_count=int(fraud_count),
+                         avg_risk=f"{avg_risk:.2%}")
 
 
 @app.route("/companies")
@@ -249,6 +836,20 @@ def analytics():
         return send_from_directory(str(react_build_path.parent), "index.html")
     return render_template("analytics.html")
 
+
+@app.route('/chatbot')
+def chatbot_page():
+    """Render chatbot page"""
+    return render_template('chatbot.html')
+
+@app.route('/landing')
+def landing_page():
+    """Render modern landing page"""
+    return render_template('landing.html')
+
+# ============================================================================
+# ROUTES - API
+# ============================================================================
 
 @app.route("/api/companies")
 def get_companies():
@@ -536,7 +1137,22 @@ def get_top_receivers_table():
 def get_top_senders():
     """API: Top invoice senders - returns Plotly chart data"""
     try:
+        if INVOICES is None or len(INVOICES) == 0:
+            logger.warning("INVOICES is empty, attempting to reload data...")
+            load_model_and_data()
+            if INVOICES is None or len(INVOICES) == 0:
+                logger.warning("INVOICES is still empty after reload")
+                return jsonify({"error": "No invoice data available"}), 404
+        
+        if "seller_id" not in INVOICES.columns:
+            logger.error(f"Missing seller_id column. Available columns: {list(INVOICES.columns)}")
+            return jsonify({"error": f"Missing seller_id column. Available: {list(INVOICES.columns)}"}), 400
+        
         top_senders = INVOICES.groupby("seller_id").size().nlargest(10)
+        
+        if len(top_senders) == 0:
+            logger.warning("No top senders found after grouping")
+            return jsonify({"error": "No sender data available"}), 404
         
         company_ids = []
         counts = []
@@ -544,26 +1160,38 @@ def get_top_senders():
         
         for seller_id, count in top_senders.items():
             seller_id_str = str(seller_id).strip()
-            company = COMPANIES[COMPANIES["company_id"].astype(str) == seller_id_str]
-            if len(company) > 0:
-                company_ids.append(seller_id_str)
-                counts.append(int(count))
-                # Color based on fraud probability
-                fraud_prob = float(company.iloc[0]['fraud_probability'])
-                if fraud_prob > 0.7:
-                    colors.append('#FF9932')  # Deep Saffron
-                elif fraud_prob > 0.3:
-                    colors.append('#FFC801')  # Forsythia
+            company_ids.append(seller_id_str)
+            counts.append(int(count))
+            
+            # Try to find matching company for color coding
+            if COMPANIES is not None and len(COMPANIES) > 0 and "company_id" in COMPANIES.columns:
+                company = COMPANIES[COMPANIES["company_id"].astype(str).str.strip() == seller_id_str]
+                if len(company) > 0 and 'fraud_probability' in company.columns:
+                    fraud_prob = float(company.iloc[0]['fraud_probability'])
+                    if fraud_prob > 0.7:
+                        colors.append('#FF4444')  # Red for high risk
+                    elif fraud_prob > 0.3:
+                        colors.append('#FF9932')  # Orange for medium risk
+                    else:
+                        colors.append('#114C5A')  # Blue for low risk
                 else:
-                    colors.append('#114C5A')  # Nocturnal Expedition
+                    colors.append('#6C757D')  # Gray for unknown
+            else:
+                colors.append('#114C5A')  # Default color
+        
+        # Ensure we have data
+        if len(company_ids) == 0:
+            logger.error("No company IDs collected")
+            return jsonify({"error": "No data to display"}), 404
         
         fig = go.Figure(data=[
             go.Bar(
-                y=counts,
                 x=company_ids,
-                marker=dict(color=colors),
+                y=counts,
+                marker=dict(color=colors if len(colors) == len(counts) else '#114C5A'),
                 text=counts,
-                textposition='auto'
+                textposition='outside',
+                textfont=dict(size=11)
             )
         ])
         fig.update_layout(
@@ -573,21 +1201,39 @@ def get_top_senders():
             height=400,
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)',
-            font=dict(color='#172B36', family='Inter, sans-serif')
+            font=dict(color='#172B36', family='Inter, sans-serif'),
+            xaxis=dict(tickangle=-45),
+            yaxis=dict(range=[0, max(counts) * 1.15] if counts else [0, 10]),
+            margin=dict(b=100, l=60, r=20, t=60)
         )
         
         return jsonify(fig.to_dict())
     
     except Exception as e:
         logger.error(f"Error in get_top_senders: {e}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": str(e), "traceback": str(e.__traceback__)}), 500
 
 
 @app.route("/api/top_receivers")
 def get_top_receivers():
     """API: Top invoice receivers - returns Plotly chart data"""
     try:
+        if INVOICES is None or len(INVOICES) == 0:
+            logger.warning("INVOICES is empty, attempting to reload data...")
+            load_model_and_data()
+            if INVOICES is None or len(INVOICES) == 0:
+                logger.warning("INVOICES is still empty after reload")
+                return jsonify({"error": "No invoice data available"}), 404
+        
+        if "buyer_id" not in INVOICES.columns:
+            logger.error(f"Missing buyer_id column. Available columns: {list(INVOICES.columns)}")
+            return jsonify({"error": f"Missing buyer_id column. Available: {list(INVOICES.columns)}"}), 400
+        
         top_receivers = INVOICES.groupby("buyer_id").size().nlargest(10)
+        
+        if len(top_receivers) == 0:
+            logger.warning("No top receivers found after grouping")
+            return jsonify({"error": "No receiver data available"}), 404
         
         company_ids = []
         counts = []
@@ -595,26 +1241,38 @@ def get_top_receivers():
         
         for buyer_id, count in top_receivers.items():
             buyer_id_str = str(buyer_id).strip()
-            company = COMPANIES[COMPANIES["company_id"].astype(str) == buyer_id_str]
-            if len(company) > 0:
-                company_ids.append(buyer_id_str)
-                counts.append(int(count))
-                # Color based on fraud probability
-                fraud_prob = float(company.iloc[0]['fraud_probability'])
-                if fraud_prob > 0.7:
-                    colors.append('#FF9932')  # Deep Saffron
-                elif fraud_prob > 0.3:
-                    colors.append('#FFC801')  # Forsythia
+            company_ids.append(buyer_id_str)
+            counts.append(int(count))
+            
+            # Try to find matching company for color coding
+            if COMPANIES is not None and len(COMPANIES) > 0 and "company_id" in COMPANIES.columns:
+                company = COMPANIES[COMPANIES["company_id"].astype(str).str.strip() == buyer_id_str]
+                if len(company) > 0 and 'fraud_probability' in company.columns:
+                    fraud_prob = float(company.iloc[0]['fraud_probability'])
+                    if fraud_prob > 0.7:
+                        colors.append('#FF4444')  # Red for high risk
+                    elif fraud_prob > 0.3:
+                        colors.append('#FF9932')  # Orange for medium risk
+                    else:
+                        colors.append('#114C5A')  # Blue for low risk
                 else:
-                    colors.append('#114C5A')  # Nocturnal Expedition
+                    colors.append('#6C757D')  # Gray for unknown
+            else:
+                colors.append('#FF6B6B')  # Default coral color
+        
+        # Ensure we have data
+        if len(company_ids) == 0:
+            logger.error("No company IDs collected")
+            return jsonify({"error": "No data to display"}), 404
         
         fig = go.Figure(data=[
             go.Bar(
-                y=counts,
                 x=company_ids,
-                marker=dict(color=colors),
+                y=counts,
+                marker=dict(color=colors if len(colors) == len(counts) else '#FF6B6B'),
                 text=counts,
-                textposition='auto'
+                textposition='outside',
+                textfont=dict(size=11)
             )
         ])
         fig.update_layout(
@@ -624,14 +1282,17 @@ def get_top_receivers():
             height=400,
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)',
-            font=dict(color='#172B36', family='Inter, sans-serif')
+            font=dict(color='#172B36', family='Inter, sans-serif'),
+            xaxis=dict(tickangle=-45),
+            yaxis=dict(range=[0, max(counts) * 1.15] if counts else [0, 10]),
+            margin=dict(b=100, l=60, r=20, t=60)
         )
         
         return jsonify(fig.to_dict())
     
     except Exception as e:
         logger.error(f"Error in get_top_receivers: {e}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": str(e), "traceback": str(e.__traceback__)}), 500
 
 
 @app.route("/api/locations")
@@ -678,6 +1339,84 @@ def predict():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/chatbot", methods=['POST'])
+def chatbot_api():
+    """API endpoint for chatbot queries"""
+    try:
+        # Get the user message
+        data = request.get_json()
+        user_message = data.get('message', '')
+        
+        if not user_message:
+            return jsonify({'error': 'No message provided'}), 400
+        
+        # Import Groq client
+        from groq import Groq
+        
+        # Initialize Groq client with the provided API key
+        GROQ_API_KEY = "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"
+        client = Groq(api_key=GROQ_API_KEY)
+        
+        # Get data statistics for context
+        def get_data_statistics():
+            stats = []
+            
+            if COMPANIES is not None:
+                stats.append(f"Companies Dataset: {len(COMPANIES)} records")
+                if "is_fraud" in COMPANIES.columns:
+                    fraud_count = COMPANIES["is_fraud"].sum()
+                    stats.append(f"Fraud Companies: {fraud_count} ({fraud_count/len(COMPANIES)*100:.2f}%)")
+                if "turnover" in COMPANIES.columns:
+                    stats.append(f"Total Turnover: ₹{COMPANIES['turnover'].sum():,.0f}")
+                    stats.append(f"Average Turnover: ₹{COMPANIES['turnover'].mean():,.0f}")
+                if "location" in COMPANIES.columns:
+                    stats.append(f"Locations Covered: {COMPANIES['location'].nunique()}")
+                    top_locations = COMPANIES["location"].value_counts().head(3)
+                    stats.append(f"Top 3 Locations: {dict(top_locations)}")
+            
+            if INVOICES is not None:
+                stats.append(f"Invoices Dataset: {len(INVOICES)} records")
+                if "amount" in INVOICES.columns:
+                    stats.append(f"Total Invoice Value: ₹{INVOICES['amount'].sum():,.0f}")
+                    stats.append(f"Average Invoice Value: ₹{INVOICES['amount'].mean():,.0f}")
+                if "itc_claimed" in INVOICES.columns:
+                    stats.append(f"Total ITC Claims: ₹{INVOICES['itc_claimed'].sum():,.0f}")
+                    stats.append(f"Average ITC per Invoice: ₹{INVOICES['itc_claimed'].mean():,.0f}")
+            
+            return "\n".join(stats)
+        
+        # Enhanced context for the LLM
+        system_context = (
+            "You are a GST tax compliance and fraud detection expert assistant. "
+            "You have access to a dataset of companies and their invoices. "
+            "Provide accurate, data-driven responses based on the following information:\n\n"
+            f"=== DATASET STATISTICS ===\n{get_data_statistics()}\n\n"
+            "Answer the user's question accurately and concisely."
+        )
+        
+        # Prepare messages with context
+        messages = [
+            {"role": "system", "content": system_context},
+            {"role": "user", "content": user_message}
+        ]
+        
+        # Call Groq API
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=messages,
+            temperature=0.3,
+            max_tokens=1000
+        )
+        
+        ai_response = response.choices[0].message.content
+        
+        return jsonify({'response': ai_response})
+        
+    except Exception as e:
+        logger.error(f"Chatbot error: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
 # ============================================================================
 # ERROR HANDLERS
 # ============================================================================
@@ -704,3 +1443,4 @@ if __name__ == "__main__":
     
     logger.info("Starting Flask application...")
     app.run(debug=True, host="0.0.0.0", port=5000)
+

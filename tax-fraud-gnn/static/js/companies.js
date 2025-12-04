@@ -21,11 +21,17 @@ function setupEventListeners() {
     const riskSlider = document.getElementById('riskThreshold');
     const thresholdValue = document.getElementById('thresholdValue');
 
-    if (riskSlider) {
+    if (riskSlider && thresholdValue) {
         riskSlider.addEventListener('input', function() {
-            currentRiskThreshold = parseFloat(this.value);
-            thresholdValue.textContent = this.value.toFixed(2);
+            const value = parseFloat(this.value);
+            currentRiskThreshold = value;
+            thresholdValue.textContent = value.toFixed(2);
+            // Update the slider value display immediately
+            thresholdValue.style.color = 'var(--forsythia)';
         });
+        
+        // Initialize display value
+        thresholdValue.textContent = riskSlider.value.toFixed(2);
     }
 
     // Location filter
@@ -66,20 +72,58 @@ function setupEventListeners() {
         });
     }
 
-    // Modal close
+    // Modal close - use event delegation for better reliability
     const modal = document.getElementById('companyModal');
-    const closeBtn = document.querySelector('.close');
-    if (closeBtn) {
-        closeBtn.onclick = function() {
+    
+    // Function to close modal
+    function closeModal() {
+        if (modal) {
             modal.style.display = 'none';
         }
     }
+    
+    // Close button click handler using event delegation
+    document.addEventListener('click', function(event) {
+        const target = event.target;
+        if (target && (target.classList.contains('close') || target.textContent === '×' || target.textContent === '✕')) {
+            event.preventDefault();
+            event.stopPropagation();
+            closeModal();
+        }
+    });
 
-    window.onclick = function(event) {
-        if (event.target === modal) {
-            modal.style.display = 'none';
+    // Close modal when clicking outside
+    if (modal) {
+        modal.addEventListener('click', function(event) {
+            if (event.target === modal) {
+                closeModal();
+            }
+        });
+    }
+    
+    // Also add direct event listener as backup when modal is shown
+    // This will be called when modal content is loaded
+    function attachCloseListener() {
+        const closeBtn = document.querySelector('#companyModal .close');
+        if (closeBtn) {
+            // Remove any existing listeners
+            const newCloseBtn = closeBtn.cloneNode(true);
+            closeBtn.parentNode.replaceChild(newCloseBtn, closeBtn);
+            
+            // Add fresh event listener
+            newCloseBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                closeModal();
+            });
         }
     }
+    
+    // Attach listener initially
+    attachCloseListener();
+    
+    // Make closeModal available globally for use in showCompanyDetail
+    window.closeModal = closeModal;
 }
 
 // ============================================================================
@@ -148,17 +192,40 @@ function displayCompanies(companies) {
         return;
     }
 
-    tbody.innerHTML = companies.map(company => `
-        <tr onclick="showCompanyDetail(${company.company_id})">
+    tbody.innerHTML = companies.map(company => {
+        // Escape company_id for use in JavaScript (handle string IDs)
+        const companyId = typeof company.company_id === 'string' 
+            ? `"${company.company_id.replace(/"/g, '\\"')}"` 
+            : company.company_id;
+        
+        return `
+        <tr>
             <td>${company.company_id}</td>
-            <td>${company.location}</td>
-            <td>${company.turnover}</td>
-            <td>${company.fraud_probability}</td>
+            <td>${company.location || 'N/A'}</td>
+            <td>${typeof company.turnover === 'number' ? '₹' + company.turnover.toLocaleString('en-IN', {maximumFractionDigits: 0}) : company.turnover}</td>
+            <td>${typeof company.fraud_probability === 'number' ? (company.fraud_probability * 100).toFixed(2) + '%' : company.fraud_probability}</td>
             <td><span class="risk-level ${getRiskClass(company.risk_level)}">${company.risk_level}</span></td>
-            <td>${company.status}</td>
-            <td><button class="btn btn-primary" style="padding: 6px 12px; font-size: 12px;">View</button></td>
+            <td>${company.status || 'NORMAL'}</td>
+            <td>
+                <button class="btn btn-primary view-company-btn" 
+                        style="padding: 6px 12px; font-size: 12px; cursor: pointer;"
+                        data-company-id="${company.company_id}"
+                        onclick="event.stopPropagation(); showCompanyDetail('${company.company_id.replace(/'/g, "\\'")}')">
+                    View
+                </button>
+            </td>
         </tr>
-    `).join('');
+    `;
+    }).join('');
+    
+    // Also add event listeners after rendering (backup method)
+    tbody.querySelectorAll('.view-company-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const companyId = this.getAttribute('data-company-id');
+            showCompanyDetail(companyId);
+        });
+    });
 }
 
 function getRiskClass(riskLevel) {
@@ -172,21 +239,55 @@ function getRiskClass(riskLevel) {
 // ============================================================================
 
 function showCompanyDetail(companyId) {
-    fetch(`/api/company/${companyId}`)
-        .then(response => response.json())
+    console.log('Loading company detail for:', companyId);
+    
+    // Ensure companyId is properly encoded
+    const encodedId = encodeURIComponent(companyId);
+    
+    fetch(`/api/company/${encodedId}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(company => {
+            console.log('Company data received:', company);
             displayCompanyDetail(company);
-            document.getElementById('companyModal').style.display = 'block';
+            const modal = document.getElementById('companyModal');
+            if (modal) {
+                modal.style.display = 'block';
+                // Re-attach close button listener after modal is shown
+                setTimeout(function() {
+                    const closeBtn = modal.querySelector('.close');
+                    if (closeBtn) {
+                        // Remove old listener and add new one
+                        const newCloseBtn = closeBtn.cloneNode(true);
+                        closeBtn.parentNode.replaceChild(newCloseBtn, closeBtn);
+                        newCloseBtn.addEventListener('click', function(e) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (window.closeModal) {
+                                window.closeModal();
+                            } else {
+                                modal.style.display = 'none';
+                            }
+                        });
+                    }
+                }, 50);
+            } else {
+                console.error('Modal element not found');
+            }
         })
         .catch(error => {
             console.error('Error loading company detail:', error);
-            alert('Error loading company details');
+            alert('Error loading company details: ' + error.message);
         });
 }
 
 function displayCompanyDetail(company) {
     const riskBadgeClass = company.risk_level.toLowerCase();
-    const fraudStatus = company.predicted_fraud === 1 ? '🚨 FRAUD' : '✅ NORMAL';
+    const fraudStatus = company.predicted_fraud === 1 ? 'FRAUD' : 'NORMAL';
 
     const html = `
         <h2>Company #${company.company_id} - ${fraudStatus}</h2>

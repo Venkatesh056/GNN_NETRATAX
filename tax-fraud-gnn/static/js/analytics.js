@@ -69,43 +69,151 @@ function loadStatistics() {
 
 function loadTopSendersChart() {
     console.log('Loading top senders chart...');
+    const container = document.getElementById('topSendersChart');
+    if (!container) {
+        console.error('Container topSendersChart not found');
+        return;
+    }
+    
     fetch('/api/top_senders')
         .then(response => {
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            if (!response.ok) {
+                return response.json().then(err => {
+                    throw new Error(err.error || `HTTP ${response.status}`);
+                });
+            }
             return response.json();
         })
         .then(data => {
             console.log('Top senders chart data:', data);
+            
+            // Check for error in response
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            
             if (data.data && data.layout) {
-                Plotly.newPlot('topSendersChart', data.data, data.layout, {responsive: true});
+                // Add margins to prevent toolbar overlay and remove text below
+                const layout = {
+                    ...data.layout,
+                    margin: {
+                        l: 70,
+                        r: 50,
+                        t: 80,
+                        b: 40
+                    },
+                    xaxis: {
+                        ...data.layout.xaxis,
+                        title: {
+                            text: ''
+                        },
+                        showticklabels: true
+                    },
+                    yaxis: {
+                        ...data.layout.yaxis,
+                        title: {
+                            ...data.layout.yaxis?.title,
+                            font: {
+                                size: 14
+                            }
+                        }
+                    }
+                };
+                Plotly.newPlot('topSendersChart', data.data, layout, {
+                    responsive: true,
+                    displayModeBar: true,
+                    modeBarButtonsToRemove: ['pan2d', 'lasso2d'],
+                    displaylogo: false
+                });
+                console.log('Top senders chart rendered successfully');
             } else {
-                console.error('Invalid chart data format');
+                throw new Error('Invalid chart data format - missing data or layout');
             }
         })
         .catch(error => {
             console.error('Error loading top senders chart:', error);
-            document.getElementById('topSendersChart').innerHTML = '<p style="text-align: center; color: red;">Error loading chart</p>';
+            container.innerHTML = `
+                <div style="text-align: center; padding: 40px; color: #dc3545;">
+                    <p style="font-size: 16px; font-weight: bold;">⚠️ Error loading chart</p>
+                    <p style="font-size: 14px; margin-top: 10px;">${error.message}</p>
+                    <p style="font-size: 12px; margin-top: 10px; color: #6c757d;">Check console for details</p>
+                </div>
+            `;
         });
 }
 
 function loadTopReceiversChart() {
     console.log('Loading top receivers chart...');
+    const container = document.getElementById('topReceiversChart');
+    if (!container) {
+        console.error('Container topReceiversChart not found');
+        return;
+    }
+    
     fetch('/api/top_receivers')
         .then(response => {
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            if (!response.ok) {
+                return response.json().then(err => {
+                    throw new Error(err.error || `HTTP ${response.status}`);
+                });
+            }
             return response.json();
         })
         .then(data => {
             console.log('Top receivers chart data:', data);
+            
+            // Check for error in response
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            
             if (data.data && data.layout) {
-                Plotly.newPlot('topReceiversChart', data.data, data.layout, {responsive: true});
+                // Add margins to prevent toolbar overlay and remove text below
+                const layout = {
+                    ...data.layout,
+                    margin: {
+                        l: 70,
+                        r: 50,
+                        t: 80,
+                        b: 40
+                    },
+                    xaxis: {
+                        ...data.layout.xaxis,
+                        title: {
+                            text: ''
+                        },
+                        showticklabels: true
+                    },
+                    yaxis: {
+                        ...data.layout.yaxis,
+                        title: {
+                            ...data.layout.yaxis?.title,
+                            font: {
+                                size: 14
+                            }
+                        }
+                    }
+                };
+                Plotly.newPlot('topReceiversChart', data.data, layout, {
+                    responsive: true,
+                    displayModeBar: true,
+                    modeBarButtonsToRemove: ['pan2d', 'lasso2d'],
+                    displaylogo: false
+                });
+                console.log('Top receivers chart rendered successfully');
             } else {
-                console.error('Invalid chart data format');
+                throw new Error('Invalid chart data format - missing data or layout');
             }
         })
         .catch(error => {
             console.error('Error loading top receivers chart:', error);
-            document.getElementById('topReceiversChart').innerHTML = '<p style="text-align: center; color: red;">Error loading chart</p>';
+            container.innerHTML = `
+                <div style="text-align: center; padding: 40px; color: #dc3545;">
+                    <p style="font-size: 16px; font-weight: bold;">⚠️ Error loading chart</p>
+                    <p style="font-size: 14px; margin-top: 10px;">${error.message}</p>
+                    <p style="font-size: 12px; margin-top: 10px; color: #6c757d;">Check console for details</p>
+                </div>
+            `;
         });
 }
 

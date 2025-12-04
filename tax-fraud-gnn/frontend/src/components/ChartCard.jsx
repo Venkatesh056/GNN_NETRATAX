@@ -18,6 +18,13 @@ const ChartCard = ({ title, endpoint, height = 400, fullWidth = false, customCha
       const response = await axios.get(endpoint)
       const plotlyData = response.data
       
+      // Check if response contains error
+      if (plotlyData.error) {
+        console.error('API Error:', plotlyData.error)
+        setLoading(false)
+        return
+      }
+      
       // Update colors to match palette
       if (plotlyData.data) {
         plotlyData.data = plotlyData.data.map(trace => {
@@ -56,6 +63,9 @@ const ChartCard = ({ title, endpoint, height = 400, fullWidth = false, customCha
       setLoading(false)
     } catch (error) {
       console.error('Error fetching chart data:', error)
+      console.error('Endpoint:', endpoint)
+      console.error('Status:', error.response?.status)
+      console.error('Response:', error.response?.data)
       setLoading(false)
     }
   }
