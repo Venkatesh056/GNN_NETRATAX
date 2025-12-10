@@ -7,21 +7,33 @@ import './ChartCard.css'
 const ChartCard = ({ title, endpoint, height = 400, fullWidth = false, customChart = false }) => {
   const [chartData, setChartData] = React.useState(null)
   const [loading, setLoading] = React.useState(true)
+  const [error, setError] = React.useState(null)
+  const [retryCount, setRetryCount] = React.useState(0)
   const containerRef = useRef(null)
 
   useEffect(() => {
     fetchChartData()
   }, [endpoint])
 
-  const fetchChartData = async () => {
+  const fetchChartData = async (attempt = 0) => {
     try {
-      const response = await axios.get(endpoint)
+      setError(null)
+      const response = await axios.get(endpoint, { timeout: 10000 })
       const plotlyData = response.data
       
       // Check if response contains error
       if (plotlyData.error) {
         console.error('API Error:', plotlyData.error)
-        setLoading(false)
+        // Retry up to 2 times
+        if (attempt < 2) {
+          setTimeout(() => {
+            setRetryCount(attempt + 1)
+            fetchChartData(attempt + 1)
+          }, 2000)
+        } else {
+          setError(plotlyData.error)
+          setLoading(false)
+        }
         return
       }
       

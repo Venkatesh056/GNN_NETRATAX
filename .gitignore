@@ -129,3 +129,11 @@ yarn-error.log
 .Trashes
 
 # End of file
+
+big_new/
+*.pyc
+__pycache__/
+.env
+*.pt
+models/*.pt
+data/accumulated/*.csv

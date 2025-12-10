@@ -1,0 +1,137 @@
+{
+  "overall": {
+    "accuracy": 0.8594535519125683,
+    "precision": 0.0,
+    "recall": 0.0,
+    "f1_score": 0.0,
+    "auc_roc": 0.5,
+    "true_negatives": 7864,
+    "false_positives": 0,
+    "false_negatives": 1286,
+    "true_positives": 0,
+    "total_samples": 9150
+  },
+  "by_dataset": {
+    "dataset_01": {
+      "accuracy": 0.8533333333333334,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1_score": 0.0,
+      "auc_roc": 0.5,
+      "true_negatives": 128,
+      "false_positives": 0,
+      "false_negatives": 22,
+      "true_positives": 0,
+      "total_samples": 150
+    },
+    "dataset_02": {
+      "accuracy": 0.853,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1_score": 0.0,
+      "auc_roc": 0.5,
+      "true_negatives": 853,
+      "false_positives": 0,
+      "false_negatives": 147,
+      "true_positives": 0,
+      "total_samples": 1000
+    },
+    "dataset_03": {
+      "accuracy": 0.854,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1_score": 0.0,
+      "auc_roc": 0.5,
+      "true_negatives": 854,
+      "false_positives": 0,
+      "false_negatives": 146,
+      "true_positives": 0,
+      "total_samples": 1000
+    },
+    "dataset_04": {
+      "accuracy": 0.853,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1_score": 0.0,
+      "auc_roc": 0.5,
+      "true_negatives": 853,
+      "false_positives": 0,
+      "false_negatives": 147,
+      "true_positives": 0,
+      "total_samples": 1000
+    },
+    "dataset_05": {
+      "accuracy": 0.849,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1_score": 0.0,
+      "auc_roc": 0.5,
+      "true_negatives": 849,
+      "false_positives": 0,
+      "false_negatives": 151,
+      "true_positives": 0,
+      "total_samples": 1000
+    },
+    "dataset_06": {
+      "accuracy": 0.871,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1_score": 0.0,
+      "auc_roc": 0.5,
+      "true_negatives": 871,
+      "false_positives": 0,
+      "false_negatives": 129,
+      "true_positives": 0,
+      "total_samples": 1000
+    },
+    "dataset_07": {
+      "accuracy": 0.873,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1_score": 0.0,
+      "auc_roc": 0.5,
+      "true_negatives": 873,
+      "false_positives": 0,
+      "false_negatives": 127,
+      "true_positives": 0,
+      "total_samples": 1000
+    },
+    "dataset_08": {
+      "accuracy": 0.849,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1_score": 0.0,
+      "auc_roc": 0.5,
+      "true_negatives": 849,
+      "false_positives": 0,
+      "false_negatives": 151,
+      "true_positives": 0,
+      "total_samples": 1000
+    },
+    "dataset_09": {
+      "accuracy": 0.874,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1_score": 0.0,
+      "auc_roc": 0.5,
+      "true_negatives": 874,
+      "false_positives": 0,
+      "false_negatives": 126,
+      "true_positives": 0,
+      "total_samples": 1000
+    },
+    "dataset_10": {
+      "accuracy": 0.86,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1_score": 0.0,
+      "auc_roc": 0.5,
+      "true_negatives": 860,
+      "false_positives": 0,
+      "false_negatives": 140,
+      "true_positives": 0,
+      "total_samples": 1000
+    }
+  },
+  "generated_at": "2025-12-10T00:03:30.806272"
+}

@@ -1,359 +1,838 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>NETRATAX - Upload Data</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/landing.css') }}">
-  <style>
-    body {
-      background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
-      transition: background 0.3s ease;
-    }
-    
-    .container {
-      max-width: 800px;
-      margin: 4rem auto 2rem;
-      padding: 2rem;
-    }
-    
-    h2 {
-      text-align: center;
-      font-size: clamp(2rem, 4vw, 3rem);
-      color: var(--text-primary);
-      margin-bottom: 2rem;
-      font-weight: 700;
-      transition: color 0.3s ease;
-    }
-    
-    #uploadForm {
-      background: var(--bg-card);
-      backdrop-filter: blur(10px);
-      border-radius: 20px;
-      padding: 2.5rem;
-      box-shadow: 0 8px 30px var(--shadow);
-      border: 1px solid var(--border-color);
-      transition: transform 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
-    }
-    
-    #uploadForm:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 12px 40px var(--shadow);
-    }
-    
-    #uploadForm label {
-      display: block;
-      margin-bottom: 0.5rem;
-      color: var(--text-primary);
-      font-weight: 600;
-      transition: color 0.3s ease;
-    }
-    
-    #uploadForm input[type="text"],
-    #uploadForm input[type="file"] {
-      width: 100%;
-      padding: 0.75rem;
-      border: 2px solid var(--border-color);
-      border-radius: 10px;
-      margin-bottom: 1.5rem;
-      background: var(--bg-primary);
-      color: var(--text-primary);
-      transition: border-color 0.3s ease, background 0.3s ease, color 0.3s ease;
-    }
-    
-    #uploadForm input:focus {
-      outline: none;
-      border-color: var(--forsythia);
-    }
-    
-    #uploadForm button {
-      background: linear-gradient(135deg, var(--forsythia), var(--deep-saffron));
-      color: var(--white);
-      padding: 1rem 2.5rem;
-      border: none;
-      border-radius: 25px;
-      font-size: 1.1rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      box-shadow: 0 4px 15px rgba(255, 200, 1, 0.3);
-    }
-    
-    #uploadForm button:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(255, 200, 1, 0.5);
-    }
-    
-    #result, #incrementalLearningStatus, #modelUpdateOutcome, #subgraphVisualization {
-      background: var(--bg-card);
-      backdrop-filter: blur(10px);
-      border-radius: 15px;
-      padding: 1.5rem;
-      margin-top: 1.5rem;
-      box-shadow: 0 4px 15px var(--shadow);
-      border: 1px solid var(--border-color);
-      color: var(--text-primary);
-      transition: background 0.3s ease, color 0.3s ease;
-    }
-    
-    .fade-in {
-      opacity: 0;
-      animation: fadeIn 0.8s ease forwards;
-    }
-    
-    @keyframes fadeIn {
-      to { opacity: 1; }
-    }
-  </style>
-  </head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Data - NETRATAX</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/landing.css') }}">
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        .upload-container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 1rem 2rem;
+        }
+
+        .page-header {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .page-header h1 {
+            font-size: 1.8rem;
+            color: var(--text-primary);
+            margin-bottom: 0.3rem;
+        }
+
+        .page-header p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        .upload-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .upload-card {
+            background: var(--bg-card);
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 8px 30px var(--shadow);
+            border: 1px solid var(--border-color);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .upload-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--forsythia), var(--deep-saffron));
+        }
+
+        .upload-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px var(--shadow);
+        }
+
+        .upload-card.invoices::before {
+            background: linear-gradient(90deg, var(--deep-saffron), var(--forsythia));
+        }
+
+        .card-icon {
+            width: 70px;
+            height: 70px;
+            margin: 0 auto 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, var(--forsythia), var(--deep-saffron));
+            border-radius: 50%;
+            animation: pulse-glow 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% {
+                box-shadow: 0 0 0 0 rgba(255, 200, 1, 0.4);
+            }
+            50% {
+                box-shadow: 0 0 0 15px rgba(255, 200, 1, 0);
+            }
+        }
+
+        .card-icon svg {
+            width: 35px;
+            height: 35px;
+            stroke: white;
+            fill: none;
+            stroke-width: 2;
+        }
+
+        .card-title {
+            text-align: center;
+            font-size: 1.4rem;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        .card-description {
+            text-align: center;
+            color: var(--text-secondary);
+            margin-bottom: 1.5rem;
+            font-size: 0.95rem;
+        }
+
+        .drop-zone {
+            border: 2px dashed var(--forsythia);
+            border-radius: 15px;
+            padding: 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: rgba(255, 200, 1, 0.05);
+            position: relative;
+        }
+
+        .drop-zone:hover {
+            border-color: var(--deep-saffron);
+            background: rgba(255, 200, 1, 0.1);
+        }
+
+        .drop-zone.dragover {
+            border-color: var(--deep-saffron);
+            background: rgba(255, 153, 50, 0.15);
+            transform: scale(1.02);
+        }
+
+        .drop-zone input[type="file"] {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .drop-zone-icon {
+            margin-bottom: 1rem;
+        }
+
+        .drop-zone-icon svg {
+            width: 50px;
+            height: 50px;
+            stroke: var(--forsythia);
+            fill: none;
+            stroke-width: 1.5;
+            animation: bounce 2s ease-in-out infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .drop-zone-text {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        .drop-zone-text span {
+            color: var(--forsythia);
+            font-weight: 600;
+        }
+
+        .file-info {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: rgba(255, 200, 1, 0.1);
+            border-radius: 10px;
+            display: none;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .file-info.active {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .file-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--forsythia), var(--deep-saffron));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .file-icon svg {
+            width: 24px;
+            height: 24px;
+            stroke: white;
+            fill: none;
+        }
+
+        .file-details {
+            flex: 1;
+        }
+
+        .file-name {
+            color: var(--text-primary);
+            font-weight: 500;
+            font-size: 0.95rem;
+        }
+
+        .file-size {
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+        }
+
+        .file-remove {
+            width: 30px;
+            height: 30px;
+            background: rgba(231, 76, 60, 0.1);
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .file-remove:hover {
+            background: rgba(231, 76, 60, 0.2);
+            transform: scale(1.1);
+        }
+
+        .file-remove svg {
+            width: 16px;
+            height: 16px;
+            stroke: #e74c3c;
+            fill: none;
+        }
+
+        /* Upload Button */
+        .upload-btn-container {
+            text-align: center;
+            margin: 2rem 0;
+        }
+
+        .upload-btn {
+            position: relative;
+            padding: 1rem 3rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--nocturnal-expedition);
+            background: linear-gradient(135deg, var(--forsythia), var(--deep-saffron));
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            overflow: hidden;
+            transition: all 0.4s ease;
+            box-shadow: 0 8px 25px rgba(255, 200, 1, 0.4);
+        }
+
+        .upload-btn:disabled {
+            background: var(--border-color);
+            color: var(--text-secondary);
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .upload-btn:not(:disabled):hover {
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 0 12px 35px rgba(255, 200, 1, 0.5);
+        }
+
+        .upload-btn:not(:disabled):active {
+            transform: translateY(-1px) scale(1.02);
+        }
+
+        .upload-btn::before {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: width 0.6s ease, height 0.6s ease;
+        }
+
+        .upload-btn:not(:disabled):hover::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .upload-btn span {
+            position: relative;
+            z-index: 1;
+        }
+
+        .upload-btn.loading span {
+            opacity: 0;
+        }
+
+        .btn-loader {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: none;
+        }
+
+        .upload-btn.loading .btn-loader {
+            display: block;
+        }
+
+        .btn-loader-dot {
+            width: 10px;
+            height: 10px;
+            background: var(--nocturnal-expedition);
+            border-radius: 50%;
+            display: inline-block;
+            margin: 0 4px;
+            animation: loaderBounce 0.6s infinite alternate;
+        }
+
+        .btn-loader-dot:nth-child(2) { animation-delay: 0.2s; }
+        .btn-loader-dot:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes loaderBounce {
+            from {
+                transform: translateY(0);
+                opacity: 0.4;
+            }
+            to {
+                transform: translateY(-15px);
+                opacity: 1;
+            }
+        }
+
+        /* Status Section */
+        .status-section {
+            background: var(--bg-card);
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 8px 30px var(--shadow);
+            border: 1px solid var(--border-color);
+            margin-bottom: 2rem;
+        }
+
+        .status-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.5rem;
+        }
+
+        .status-header h2 {
+            font-size: 1.4rem;
+            color: var(--text-primary);
+        }
+
+        .status-badge {
+            padding: 0.4rem 1rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .status-badge.ready {
+            background: rgba(39, 174, 96, 0.15);
+            color: #27ae60;
+        }
+
+        .status-badge.processing {
+            background: rgba(255, 200, 1, 0.2);
+            color: var(--deep-saffron);
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+        }
+
+        .status-item {
+            background: rgba(255, 200, 1, 0.05);
+            padding: 1.5rem;
+            border-radius: 15px;
+            text-align: center;
+            transition: all 0.3s ease;
+            border: 1px solid var(--border-color);
+        }
+
+        .status-item:hover {
+            background: rgba(255, 200, 1, 0.1);
+            transform: translateY(-3px);
+        }
+
+        .status-value {
+            font-size: 2.2rem;
+            font-weight: bold;
+            background: linear-gradient(135deg, var(--forsythia), var(--deep-saffron));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .status-label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+
+        /* Response Messages */
+        #response-area {
+            margin-top: 1.5rem;
+        }
+
+        .response-message {
+            padding: 1.5rem;
+            border-radius: 15px;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .response-message.success {
+            background: rgba(39, 174, 96, 0.1);
+            border: 1px solid rgba(39, 174, 96, 0.3);
+            color: #27ae60;
+        }
+
+        .response-message.error {
+            background: rgba(231, 76, 60, 0.1);
+            border: 1px solid rgba(231, 76, 60, 0.3);
+            color: #e74c3c;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .upload-cards {
+                grid-template-columns: 1fr;
+            }
+            .status-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
 <body data-theme="light">
-  <nav class="navbar">
-    <div class="navbar-container">
-      <div class="navbar-brand">
-        <img src="{{ url_for('static', filename='images/logo.png') }}" alt="NETRATAX Logo" class="navbar-logo">
-        <h1>NETRATAX</h1>
-      </div>
-      <ul class="navbar-menu">
-        <li><a href="/landing" class="nav-link">Home</a></li>
-        <li><a href="/dashboard" class="nav-link">Dashboard</a></li>
-        <li><a href="/companies" class="nav-link">Companies</a></li>
-        <li><a href="/analytics" class="nav-link">Analytics</a></li>
-        <li><a href="/upload" class="nav-link active">Upload</a></li>
-        <li><a href="/chatbot" class="nav-link">Chatbox</a></li>
-      </ul>
-      <div class="nav-actions">
-        <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
-          <span class="theme-icon-light">☀️</span>
-          <span class="theme-icon-dark">🌙</span>
-        </button>
-      </div>
-    </div>
-  </nav>
-
-  <div class="container">
-    <h2 class="fade-in">Upload CSV Data</h2>
-    <p style="text-align: center; color: var(--text-light); margin-bottom: 2rem; animation-delay: 0.2s;" class="fade-in">Upload companies or invoices CSV files to train and update the Graph Neural Network model</p>
-    <form id="uploadForm" method="post" enctype="multipart/form-data" action="/api/upload_data" class="fade-in" style="animation-delay: 0.3s;">
-      <label for="uploader">Uploader name (optional)</label>
-      <input type="text" id="uploader" name="uploader" />
-      <label for="file">Select CSV file</label>
-      <input type="file" id="file" name="file" accept=".csv" />
-  <label for="encrypt" style="color: var(--text-primary); transition: color 0.3s ease;"><input type="checkbox" id="encrypt" name="encrypt" /> Encrypt stored file</label>
-      <button type="submit">Upload</button>
-    </form>
-
-    <div id="result"></div>
-    <div id="incrementalLearningStatus" style="margin-top: 10px; display: none; color: var(--text-primary);">
-      <p>Incremental learning in progress... <span id="progressDots"></span></p>
-    </div>
-    <div id="modelUpdateOutcome" style="margin-top: 15px; display: none; padding: 15px; border-radius: 5px; background-color: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-primary);">
-      <h3 style="color: var(--text-primary); transition: color 0.3s ease;">Model Update Summary</h3>
-      <ul id="outcomeDetails" style="list-style-type: none; padding: 0;">
-        <li><strong>New Nodes Added:</strong> <span id="nodesAdded">0</span></li>
-        <li><strong>New Connections:</strong> <span id="edgesAdded">0</span></li>
-        <li><strong>Affected Companies:</strong> <span id="affectedNodes">0</span></li>
-        <li><strong>Subgraph Size:</strong> <span id="subgraphNodes">0</span> nodes, <span id="subgraphEdges">0</span> edges</li>
-        <li><strong>Model Retrained:</strong> On affected subgraph</li>
-        <li><strong>Fraud Probabilities:</strong> Updated for all companies</li>
-        <li><strong>Data Persisted:</strong> Graph and model weights saved</li>
-      </ul>
-      <p style="font-weight: bold; color: var(--success-color); font-size: 1.1em;">Model successfully updated with new data!</p>
-    </div>
-    <div id="subgraphVisualization" style="margin-top: 20px; display: none; padding: 15px; border-radius: 5px; background-color: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-primary);">
-      <h3 style="color: var(--text-primary); transition: color 0.3s ease;">Subgraph Visualization</h3>
-      <div id="subgraphStats" style="margin-bottom: 15px; color: var(--text-primary);">
-        <p><strong>Subgraph Analysis:</strong></p>
-        <ul style="list-style-type: none; padding: 0; color: var(--text-primary);">
-          <li><strong>Central Nodes:</strong> <span id="centralNodes">0</span> key companies identified</li>
-          <li><strong>Connections:</strong> <span id="connectionDensity">0</span> connections analyzed</li>
-          <li><strong>Depth:</strong> <span id="subgraphDepth">0</span>-hop neighborhood processed</li>
-        </ul>
-      </div>
-      <div id="subgraphDiagram" style="background-color: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 4px; padding: 10px; min-height: 150px; color: var(--text-primary);">
-        <div id="subgraphText" style="text-align: left; color: var(--text-primary); margin: 0; padding: 10px;">
-          Subgraph structure would be visualized here
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="/" class="nav-logo">
+                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="NETRATAX Logo" class="logo-image">
+            </a>
+            <ul class="nav-menu">
+                <li class="nav-item"><a href="/" class="nav-link">Home</a></li>
+                <li class="nav-item"><a href="/dashboard" class="nav-link">Dashboard</a></li>
+                <li class="nav-item"><a href="/companies" class="nav-link">Companies</a></li>
+                <li class="nav-item"><a href="/upload" class="nav-link active">Upload</a></li>
+                <li class="nav-item"><a href="/chatbot" class="nav-link">Chatbot</a></li>
+            </ul>
+            <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">
+                <svg class="sun-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+                </svg>
+                <svg class="moon-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+                </svg>
+            </button>
         </div>
-      </div>
-      <div id="subgraphInsights" style="margin-top: 10px; color: var(--text-primary);">
-        <p><strong>Key Insights:</strong></p>
-        <ul style="list-style-type: none; padding: 0; color: var(--text-primary);">
-          <li><span id="fraudNodesCount">0</span> companies flagged for potential fraud review</li>
-          <li><span id="highRiskCount">0</span> companies identified as high-risk</li>
-          <li><span id="updatedNodesCount">0</span> company profiles updated with new data</li>
-        </ul>
-      </div>
-    </div>
-  </div>
+    </nav>
 
-  <script>
-  document.getElementById('uploadForm').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    const form = document.getElementById('uploadForm');
-    const data = new FormData(form);
-    const resElem = document.getElementById('result');
-    const statusElem = document.getElementById('incrementalLearningStatus');
-    const outcomeElem = document.getElementById('modelUpdateOutcome');
-    const subgraphElem = document.getElementById('subgraphVisualization');
-    const progressDots = document.getElementById('progressDots');
-    
-    // Outcome detail elements
-    const nodesAddedElem = document.getElementById('nodesAdded');
-    const edgesAddedElem = document.getElementById('edgesAdded');
-    const affectedNodesElem = document.getElementById('affectedNodes');
-    const subgraphNodesElem = document.getElementById('subgraphNodes');
-    const subgraphEdgesElem = document.getElementById('subgraphEdges');
-    
-    // Subgraph visualization elements
-    const centralNodesElem = document.getElementById('centralNodes');
-    const connectionDensityElem = document.getElementById('connectionDensity');
-    const subgraphDepthElem = document.getElementById('subgraphDepth');
-    const fraudNodesCountElem = document.getElementById('fraudNodesCount');
-    const highRiskCountElem = document.getElementById('highRiskCount');
-    const updatedNodesCountElem = document.getElementById('updatedNodesCount');
-    const subgraphTextElem = document.getElementById('subgraphText');
-    
-    resElem.textContent = 'Uploading...';
-    statusElem.style.display = 'none';
-    outcomeElem.style.display = 'none';
-    subgraphElem.style.display = 'none';
-    
-    try {
-      const resp = await fetch('/api/upload_data', {method: 'POST', body: data});
-      const json = await resp.json();
-      if (resp.ok) {
-        const encNote = json.encrypted ? ' (stored encrypted)' : '';
-        resElem.textContent = `Upload successful: ${json.filename} (${json.rows} rows, ${json.columns} cols)${encNote}`;
-        
-        // Show incremental learning status
-        statusElem.style.display = 'block';
-        
-        // Animate progress dots
-        let dots = 0;
-        const dotInterval = setInterval(() => {
-          dots = (dots + 1) % 4;
-          progressDots.textContent = '.'.repeat(dots);
-        }, 500);
-        
-        // Show outcome when completion data is available
-        setTimeout(() => {
-          clearInterval(dotInterval);
-          statusElem.innerHTML = '<p style="color: var(--success-color);">Incremental learning completed successfully!</p>';
-          
-          // Show model update outcome with real data if available
-          if (json.incremental_learning) {
-            const il = json.incremental_learning;
-            nodesAddedElem.textContent = il.nodes_added;
-            edgesAddedElem.textContent = il.edges_added;
-            affectedNodesElem.textContent = il.affected_nodes;
-            subgraphNodesElem.textContent = il.subgraph_nodes;
-            subgraphEdgesElem.textContent = il.subgraph_edges;
-            
-            // Update subgraph visualization
-            const centralNodesCount = il.central_nodes_count || Math.min(il.affected_nodes, 5);
-            const fraudNodesCount = il.fraud_nodes || Math.floor(il.affected_nodes * 0.1);
-            const highRiskCount = il.high_risk_nodes || Math.floor(il.affected_nodes * 0.05);
-            
-            centralNodesElem.textContent = centralNodesCount;
-            connectionDensityElem.textContent = il.subgraph_edges;
-            subgraphDepthElem.textContent = "2";
-            fraudNodesCountElem.textContent = fraudNodesCount;
-            highRiskCountElem.textContent = highRiskCount;
-            updatedNodesCountElem.textContent = il.nodes_added;
-            
-            // Show subgraph diagram text with actual data
-            subgraphTextElem.innerHTML = `
-              <strong>Subgraph Structure Analysis:</strong><br><br>
-              <div style="display: flex; justify-content: space-around; flex-wrap: wrap;">
-                <div style="text-align: center; margin: 10px;">
-                  <div style="font-size: 24px; font-weight: bold; color: var(--info-color);">${il.subgraph_nodes}</div>
-                  <div style="color: var(--text-primary);">Nodes</div>
+    <div class="container">
+        <div class="upload-container">
+            <div class="page-header">
+                <h1>📤 Upload Datasets</h1>
+                <p>Upload company data (nodes) and invoice transactions (edges) to train the fraud detection model</p>
+            </div>
+
+            <form id="upload-form" enctype="multipart/form-data">
+                <div class="upload-cards">
+                    <!-- Companies CSV (Nodes) -->
+                    <div class="upload-card companies">
+                        <div class="card-icon">
+                            <svg viewBox="0 0 24 24">
+                                <circle cx="12" cy="7" r="4"/>
+                                <path d="M4 21v-2a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v2"/>
+                            </svg>
+                        </div>
+                        <h3 class="card-title">Companies Dataset</h3>
+                        <p class="card-description">CSV with company nodes (GSTIN, turnover, compliance)</p>
+                        
+                        <div class="drop-zone" id="companies-drop">
+                            <input type="file" id="companies-file" name="companies_file" accept=".csv" />
+                            <div class="drop-zone-icon">
+                                <svg viewBox="0 0 24 24">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                    <polyline points="17 8 12 3 7 8"/>
+                                    <line x1="12" y1="3" x2="12" y2="15"/>
+                                </svg>
+                            </div>
+                            <p class="drop-zone-text">
+                                Drag & drop or <span>browse</span>
+                            </p>
+                        </div>
+
+                        <div class="file-info" id="companies-info">
+                            <div class="file-icon">
+                                <svg viewBox="0 0 24 24">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                    <polyline points="14 2 14 8 20 8"/>
+                                </svg>
+                            </div>
+                            <div class="file-details">
+                                <div class="file-name" id="companies-name">companies.csv</div>
+                                <div class="file-size" id="companies-size">0 KB</div>
+                            </div>
+                            <button type="button" class="file-remove" onclick="removeFile('companies')">
+                                <svg viewBox="0 0 24 24">
+                                    <line x1="18" y1="6" x2="6" y2="18"/>
+                                    <line x1="6" y1="6" x2="18" y2="18"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Invoices CSV (Edges) -->
+                    <div class="upload-card invoices">
+                        <div class="card-icon">
+                            <svg viewBox="0 0 24 24">
+                                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                                <polyline points="15 3 21 3 21 9"/>
+                                <line x1="10" y1="14" x2="21" y2="3"/>
+                            </svg>
+                        </div>
+                        <h3 class="card-title">Invoices Dataset</h3>
+                        <p class="card-description">CSV with invoice transactions (buyer, seller, amounts)</p>
+                        
+                        <div class="drop-zone" id="invoices-drop">
+                            <input type="file" id="invoices-file" name="invoices_file" accept=".csv" />
+                            <div class="drop-zone-icon">
+                                <svg viewBox="0 0 24 24">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                    <polyline points="17 8 12 3 7 8"/>
+                                    <line x1="12" y1="3" x2="12" y2="15"/>
+                                </svg>
+                            </div>
+                            <p class="drop-zone-text">
+                                Drag & drop or <span>browse</span>
+                            </p>
+                        </div>
+
+                        <div class="file-info" id="invoices-info">
+                            <div class="file-icon">
+                                <svg viewBox="0 0 24 24">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                    <polyline points="14 2 14 8 20 8"/>
+                                </svg>
+                            </div>
+                            <div class="file-details">
+                                <div class="file-name" id="invoices-name">invoices.csv</div>
+                                <div class="file-size" id="invoices-size">0 KB</div>
+                            </div>
+                            <button type="button" class="file-remove" onclick="removeFile('invoices')">
+                                <svg viewBox="0 0 24 24">
+                                    <line x1="18" y1="6" x2="6" y2="18"/>
+                                    <line x1="6" y1="6" x2="18" y2="18"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
                 </div>
-                <div style="text-align: center; margin: 10px;">
-                  <div style="font-size: 24px; font-weight: bold; color: var(--success-color);">${il.subgraph_edges}</div>
-                  <div style="color: var(--text-primary);">Edges</div>
+
+                <div class="upload-btn-container">
+                    <button type="submit" class="upload-btn" id="upload-btn" disabled>
+                        <span>🚀 Upload & Train Model</span>
+                        <div class="btn-loader">
+                            <span class="btn-loader-dot"></span>
+                            <span class="btn-loader-dot"></span>
+                            <span class="btn-loader-dot"></span>
+                        </div>
+                    </button>
                 </div>
-                <div style="text-align: center; margin: 10px;">
-                  <div style="font-size: 24px; font-weight: bold; color: var(--forsythia);">${centralNodesCount}</div>
-                  <div style="color: var(--text-primary);">Central Nodes</div>
+            </form>
+
+            <!-- Status Section -->
+            <div class="status-section">
+                <div class="status-header">
+                    <h2>📊 Model Training Status</h2>
+                    <span class="status-badge ready" id="status-badge">Ready</span>
                 </div>
-              </div>
-              <br>
-              <div style="background-color: var(--bg-secondary); padding: 10px; border-radius: 4px; color: var(--text-primary); border: 1px solid var(--border-color);">
-                <strong style="color: var(--text-primary);">Processing Details:</strong><br>
-                • 2-hop neighborhood expansion from new data points<br>
-                • ${il.affected_nodes} companies in affected area<br>
-                • ${fraudNodesCount} potential fraud cases identified<br>
-                • ${highRiskCount} high-risk companies detected<br>
-                • Model retrained on ${il.subgraph_nodes} nodes
-              </div>
-            `;
-          } else {
-            // Fallback to simulated data
-            const nodesAdded = Math.floor(Math.random() * 10) + 1;
-            const edgesAdded = Math.floor(Math.random() * 20) + 5;
-            const affectedNodes = Math.floor(Math.random() * 15) + 5;
-            const subgraphNodes = Math.floor(Math.random() * 20) + 10;
-            const subgraphEdges = Math.floor(Math.random() * 30) + 15;
+                <div class="status-grid">
+                    <div class="status-item">
+                        <div class="status-value" id="total-nodes">0</div>
+                        <div class="status-label">Total Companies</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-value" id="total-edges">0</div>
+                        <div class="status-label">Total Transactions</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-value" id="datasets-uploaded">0</div>
+                        <div class="status-label">Datasets Processed</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="response-area"></div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+    <script>
+        // File handling
+        const companiesFile = document.getElementById("companies-file");
+        const invoicesFile = document.getElementById("invoices-file");
+        const uploadBtn = document.getElementById("upload-btn");
+
+        let selectedCompanies = null;
+        let selectedInvoices = null;
+
+        function updateUploadButton() {
+            uploadBtn.disabled = !(selectedCompanies && selectedInvoices);
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes < 1024) return bytes + " B";
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+            return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+        }
+
+        function showFileInfo(type, file) {
+            const info = document.getElementById(`${type}-info`);
+            const name = document.getElementById(`${type}-name`);
+            const size = document.getElementById(`${type}-size`);
             
-            nodesAddedElem.textContent = nodesAdded;
-            edgesAddedElem.textContent = edgesAdded;
-            affectedNodesElem.textContent = affectedNodes;
-            subgraphNodesElem.textContent = subgraphNodes;
-            subgraphEdgesElem.textContent = subgraphEdges;
+            name.textContent = file.name;
+            size.textContent = formatFileSize(file.size);
+            info.classList.add("active");
+        }
+
+        function removeFile(type) {
+            const input = document.getElementById(`${type}-file`);
+            const info = document.getElementById(`${type}-info`);
             
-            // Update subgraph visualization with simulated data
-            const centralNodesCount = Math.floor(Math.random() * 5) + 1;
-            const fraudNodesCount = Math.floor(Math.random() * 3) + 1;
-            const highRiskCount = Math.floor(Math.random() * 2) + 1;
+            input.value = "";
+            info.classList.remove("active");
             
-            centralNodesElem.textContent = centralNodesCount;
-            connectionDensityElem.textContent = subgraphEdges;
-            subgraphDepthElem.textContent = "2";
-            fraudNodesCountElem.textContent = fraudNodesCount;
-            highRiskCountElem.textContent = highRiskCount;
-            updatedNodesCountElem.textContent = nodesAdded;
+            if (type === "companies") {
+                selectedCompanies = null;
+            } else {
+                selectedInvoices = null;
+            }
             
-            // Show subgraph diagram text with simulated data
-            subgraphTextElem.innerHTML = `
-              <strong style="color: var(--text-primary);">Subgraph Structure Analysis (Sample Data):</strong><br><br>
-              <div style="display: flex; justify-content: space-around; flex-wrap: wrap;">
-                <div style="text-align: center; margin: 10px;">
-                  <div style="font-size: 24px; font-weight: bold; color: var(--info-color);">${subgraphNodes}</div>
-                  <div style="color: var(--text-primary);">Nodes</div>
-                </div>
-                <div style="text-align: center; margin: 10px;">
-                  <div style="font-size: 24px; font-weight: bold; color: var(--success-color);">${subgraphEdges}</div>
-                  <div style="color: var(--text-primary);">Edges</div>
-                </div>
-                <div style="text-align: center; margin: 10px;">
-                  <div style="font-size: 24px; font-weight: bold; color: var(--forsythia);">${centralNodesCount}</div>
-                  <div style="color: var(--text-primary);">Central Nodes</div>
-                </div>
-              </div>
-              <br>
-              <div style="background-color: var(--bg-secondary); padding: 10px; border-radius: 4px; color: var(--text-primary); border: 1px solid var(--border-color);">
-                <strong style="color: var(--text-primary);">Processing Details:</strong><br>
-                • 2-hop neighborhood expansion from new data points<br>
-                • ${affectedNodes} companies in affected area<br>
-                • ${fraudNodesCount} potential fraud cases identified<br>
-                • ${highRiskCount} high-risk companies detected<br>
-                • Model retrained on ${subgraphNodes} nodes
-              </div>
-            `;
-          }
-          
-          outcomeElem.style.display = 'block';
-          subgraphElem.style.display = 'block';
-        }, 3000);
-      } else {
-        resElem.textContent = `Error: ${json.error}`;
-      }
-    } catch (err) {
-      resElem.textContent = 'Upload failed: ' + err;
-    }
-  });
-  </script>
-  <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+            updateUploadButton();
+        }
+
+        // File handlers
+        companiesFile.addEventListener("change", function(e) {
+            if (e.target.files.length > 0) {
+                selectedCompanies = e.target.files[0];
+                showFileInfo("companies", selectedCompanies);
+                updateUploadButton();
+            }
+        });
+
+        invoicesFile.addEventListener("change", function(e) {
+            if (e.target.files.length > 0) {
+                selectedInvoices = e.target.files[0];
+                showFileInfo("invoices", selectedInvoices);
+                updateUploadButton();
+            }
+        });
+
+        // Drag and drop
+        ["companies", "invoices"].forEach((type) => {
+            const dropZone = document.getElementById(`${type}-drop`);
+            
+            dropZone.addEventListener("dragover", (e) => {
+                e.preventDefault();
+                dropZone.classList.add("dragover");
+            });
+
+            dropZone.addEventListener("dragleave", () => {
+                dropZone.classList.remove("dragover");
+            });
+
+            dropZone.addEventListener("drop", (e) => {
+                e.preventDefault();
+                dropZone.classList.remove("dragover");
+                
+                const files = e.dataTransfer.files;
+                if (files.length > 0 && files[0].name.endsWith(".csv")) {
+                    const file = files[0];
+                    const input = document.getElementById(`${type}-file`);
+                    const dataTransfer = new DataTransfer();
+                    dataTransfer.items.add(file);
+                    input.files = dataTransfer.files;
+                    
+                    if (type === "companies") {
+                        selectedCompanies = file;
+                    } else {
+                        selectedInvoices = file;
+                    }
+                    
+                    showFileInfo(type, file);
+                    updateUploadButton();
+                }
+            });
+        });
+
+        // Form submission
+        document.getElementById("upload-form").addEventListener("submit", async function(e) {
+            e.preventDefault();
+            
+            if (!selectedCompanies || !selectedInvoices) return;
+
+            const btn = document.getElementById("upload-btn");
+            const badge = document.getElementById("status-badge");
+            const responseArea = document.getElementById("response-area");
+
+            btn.classList.add("loading");
+            badge.className = "status-badge processing";
+            badge.textContent = "Processing...";
+            responseArea.innerHTML = "";
+
+            const formData = new FormData();
+            formData.append("companies_file", selectedCompanies);
+            formData.append("invoices_file", selectedInvoices);
+
+            try {
+                const response = await fetch("/api/upload_data", {
+                    method: "POST",
+                    body: formData,
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    responseArea.innerHTML = `
+                        <div class="response-message success">
+                            <strong>✅ Upload Successful!</strong><br>
+                            ${data.message || "Data processed successfully."}
+                            ${data.new_nodes ? `<br>• New companies: ${data.new_nodes}` : ""}
+                            ${data.new_edges ? `<br>• New transactions: ${data.new_edges}` : ""}
+                        </div>
+                    `;
+
+                    if (data.total_nodes !== undefined) {
+                        document.getElementById("total-nodes").textContent = data.total_nodes;
+                    }
+                    if (data.total_edges !== undefined) {
+                        document.getElementById("total-edges").textContent = data.total_edges;
+                    }
+                    if (data.datasets_uploaded !== undefined) {
+                        document.getElementById("datasets-uploaded").textContent = data.datasets_uploaded;
+                    }
+
+                    badge.className = "status-badge ready";
+                    badge.textContent = "Ready";
+                } else {
+                    responseArea.innerHTML = `
+                        <div class="response-message error">
+                            <strong>❌ Error:</strong> ${data.error || "Upload failed"}
+                        </div>
+                    `;
+                    badge.className = "status-badge ready";
+                    badge.textContent = "Ready";
+                }
+            } catch (error) {
+                responseArea.innerHTML = `
+                    <div class="response-message error">
+                        <strong>❌ Network Error:</strong> ${error.message}
+                    </div>
+                `;
+                badge.className = "status-badge ready";
+                badge.textContent = "Ready";
+            }
+
+            btn.classList.remove("loading");
+        });
+
+        // Load initial stats
+        async function loadStats() {
+            try {
+                const response = await fetch("/api/statistics");
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.total_companies !== undefined) {
+                        document.getElementById("total-nodes").textContent = data.total_companies;
+                    }
+                    if (data.total_edges !== undefined) {
+                        document.getElementById("total-edges").textContent = data.total_edges;
+                    }
+                }
+            } catch (error) {
+                console.log("Could not load initial stats");
+            }
+        }
+
+        loadStats();
+    </script>
 </body>
 </html>

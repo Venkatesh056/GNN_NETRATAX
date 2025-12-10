@@ -4,38 +4,69 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NETRATAX - AI-Powered Tax Fraud Detection </title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/landing.css') }}">
+    <style>
+        /* Force navbar to match dashboard exactly */
+        .navbar {
+            padding: 0.5rem 0 !important;
+            height: auto !important;
+        }
+        .navbar-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 2rem;
+        }
+        .navbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .navbar-logo {
+            height: 45px !important;
+            width: auto !important;
+        }
+        .navbar-brand h1 {
+            font-size: 24px !important;
+            margin: 0 !important;
+        }
+        .navbar-menu {
+            list-style: none;
+            display: flex;
+            gap: 30px;
+            margin: 0;
+            padding: 0;
+        }
+        .hero {
+            padding-top: 80px;
+        }
+    </style>
 </head>
 <body data-theme="light">
-    <!-- Sticky Navigation Bar -->
-    <nav class="navbar" id="navbar">
-        <div class="nav-container">
-            <div class="nav-brand">
+    <!-- Sticky Navigation Bar - Same as Dashboard -->
+    <nav class="navbar">
+        <div class="navbar-container">
+            <div class="navbar-brand">
                 <img src="{{ url_for('static', filename='images/logo.png') }}" alt="NETRATAX Logo" class="navbar-logo">
-                <div class="logo">NETRATAX</div>
-                <span class="brand-tagline">AI Embedded Tax Fraud Detection</span>
+                <h1>NETRATAX</h1>
             </div>
-            <ul class="nav-menu" id="navMenu">
-                <li class="nav-item"><a href="#ai-assistants" class="nav-link">Features</a></li>
-                <li class="nav-item"><a href="/dashboard" class="nav-link">Dashboard</a></li>
-                <li class="nav-item"><a href="/analytics" class="nav-link">Analytics</a></li>
-                <li class="nav-item"><a href="/companies" class="nav-link">Companies</a></li>
-                <li class="nav-item"><a href="/upload" class="nav-link">Upload Data</a></li>
-                <li class="nav-item"><a href="/chatbot" class="nav-link">AI Chatbox</a></li>
+            <ul class="navbar-menu">
+                <li><a href="/landing" class="nav-link active">Home</a></li>
+                <li><a href="/dashboard" class="nav-link">Dashboard</a></li>
+                <li><a href="/companies" class="nav-link">Companies</a></li>
+                <li><a href="/upload" class="nav-link">Upload</a></li>
+                <li><a href="/chatbot" class="nav-link">Chatbox</a></li>
             </ul>
             <div class="nav-actions">
                 <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
                     <span class="theme-icon-light">☀️</span>
                     <span class="theme-icon-dark">🌙</span>
                 </button>
-                <a href="/dashboard" class="nav-signin">Sign In</a>
-                <a href="/dashboard" class="btn-get-started">Get Started</a>
             </div>
-            <button class="mobile-menu-toggle" id="mobileMenuToggle">
-                <span></span>
-                <span></span>
-                <span></span>
-            </button>
         </div>
     </nav>
 
@@ -140,7 +171,7 @@
                     </div>
                     <h3>Transaction Monitoring</h3>
                     <p>Real-time monitoring of all transactions with automated anomaly detection and alert system</p>
-                    <a href="/analytics" class="feature-link">View Analytics →</a>
+                    <a href="/companies" class="feature-link">View Companies →</a>
                 </div>
                 <div class="feature-card fade-in" style="animation-delay: 0.2s">
                     <div class="feature-icon-wrapper">
@@ -213,6 +244,7 @@
         </div>
     </section>
 
+    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
     <script src="{{ url_for('static', filename='js/landing.js') }}"></script>
 </body>
 </html>

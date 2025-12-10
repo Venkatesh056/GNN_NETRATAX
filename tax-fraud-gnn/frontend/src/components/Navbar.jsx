@@ -8,8 +8,7 @@ const Navbar = () => {
 
   const navItems = [
     { path: '/', label: 'Dashboard', icon: '📊' },
-    { path: '/companies', label: 'Companies', icon: '🔍' },
-    { path: '/analytics', label: 'Analytics', icon: '📈' }
+    { path: '/companies', label: 'Companies', icon: '🔍' }
   ]
 
   return (

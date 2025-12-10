@@ -8,6 +8,36 @@
 // ============================================================================
 
 /**
+ * Get theme-aware chart layout settings
+ */
+function getThemeAwareLayout() {
+    const isDark = document.body.getAttribute('data-theme') === 'dark';
+    const textColor = isDark ? '#F1F6F4' : '#172B36';
+    const gridColor = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
+    
+    return {
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(0,0,0,0)',
+        font: { color: textColor, family: 'Inter, sans-serif' },
+        xaxis: { gridcolor: gridColor, tickfont: { color: textColor } },
+        yaxis: { gridcolor: gridColor, tickfont: { color: textColor } }
+    };
+}
+
+/**
+ * Merge theme layout with chart layout
+ */
+function applyThemeToLayout(layout) {
+    const themeLayout = getThemeAwareLayout();
+    return {
+        ...layout,
+        ...themeLayout,
+        xaxis: { ...layout.xaxis, ...themeLayout.xaxis },
+        yaxis: { ...layout.yaxis, ...themeLayout.yaxis }
+    };
+}
+
+/**
  * Fetch JSON data from an API endpoint
  */
 async function fetchAPI(endpoint) {
@@ -64,7 +94,8 @@ function loadFraudDistributionChart() {
             console.log('Fraud distribution data:', data);
             const container = document.getElementById('fraudDistributionChart');
             if (container) {
-                Plotly.newPlot('fraudDistributionChart', data.data, data.layout, {
+                const themedLayout = applyThemeToLayout(data.layout);
+                Plotly.newPlot('fraudDistributionChart', data.data, themedLayout, {
                     responsive: true,
                     displayModeBar: true
                 });
@@ -88,7 +119,8 @@ function loadRiskDistributionChart() {
             console.log('Risk distribution data:', data);
             const container = document.getElementById('riskDistributionChart');
             if (container) {
-                Plotly.newPlot('riskDistributionChart', data.data, data.layout, {
+                const themedLayout = applyThemeToLayout(data.layout);
+                Plotly.newPlot('riskDistributionChart', data.data, themedLayout, {
                     responsive: true,
                     displayModeBar: true
                 });
@@ -112,7 +144,8 @@ function loadRiskByLocationChart() {
             console.log('Risk by location data:', data);
             const container = document.getElementById('riskByLocationChart');
             if (container) {
-                Plotly.newPlot('riskByLocationChart', data.data, data.layout, {
+                const themedLayout = applyThemeToLayout(data.layout);
+                Plotly.newPlot('riskByLocationChart', data.data, themedLayout, {
                     responsive: true,
                     displayModeBar: true
                 });
@@ -136,7 +169,8 @@ function loadTurnoverVsRiskChart() {
             console.log('Turnover vs risk data:', data);
             const container = document.getElementById('turnoverVsRiskChart');
             if (container) {
-                Plotly.newPlot('turnoverVsRiskChart', data.data, data.layout, {
+                const themedLayout = applyThemeToLayout(data.layout);
+                Plotly.newPlot('turnoverVsRiskChart', data.data, themedLayout, {
                     responsive: true,
                     displayModeBar: true
                 });

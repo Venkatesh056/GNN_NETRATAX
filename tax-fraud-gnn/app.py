@@ -1,8 +1,3 @@
-"""
-Flask Web Application for Tax Fraud Detection
-Replace Streamlit with professional HTML/CSS interface
-"""
-
 from flask import Flask, render_template, request, jsonify, send_from_directory, Response
 import torch
 import pandas as pd
@@ -73,37 +68,66 @@ MAPPINGS = None
 FRAUD_PROBA = None
 NETWORKX_GRAPH = None  # Add NetworkX graph for easier manipulation
 
+# Accumulation tracking
+ACCUMULATED_DATA_PATH = Path(__file__).parent / "data" / "accumulated"
+UPLOAD_HISTORY = []  # Track all uploads for audit trail
+TOTAL_UPLOADS = 0
+LAST_RETRAIN_TIME = None
+
+
+def _first_bad_param(model: nn.Module):
+    """Return the first parameter name that contains NaN/Inf, else None."""
+    for name, param in model.named_parameters():
+        if torch.isnan(param).any() or torch.isinf(param).any():
+            return name
+    return None
+
 
 def load_model_and_data():
-    """Load model and data on startup"""
-    global MODEL, GRAPH_DATA, DEVICE, COMPANIES, INVOICES, MAPPINGS, FRAUD_PROBA, NETWORKX_GRAPH
+    """Load model and data on startup - prioritizes accumulated data"""
+    global MODEL, GRAPH_DATA, DEVICE, COMPANIES, INVOICES, MAPPINGS, FRAUD_PROBA, NETWORKX_GRAPH, ACCUMULATED_DATA_PATH
     
     data_path = Path(__file__).parent / "data" / "processed"
     models_path = Path(__file__).parent / "models"
     uploads_path = Path(__file__).parent / "data" / "uploads"
     
+    # Create accumulated data directory if it doesn't exist
+    ACCUMULATED_DATA_PATH.mkdir(parents=True, exist_ok=True)
+    
     logger.info("Loading data...")
     
-    # Try to load from uploads folder first (most recent data)
+    # PRIORITY 1: Try to load accumulated data first (most recent state)
+    accumulated_companies = ACCUMULATED_DATA_PATH / "companies_accumulated.csv"
+    accumulated_invoices = ACCUMULATED_DATA_PATH / "invoices_accumulated.csv"
+    
     companies_file = None
     invoices_file = None
     
-    # Find the most recent upload folder
-    if uploads_path.exists():
-        upload_folders = sorted([d for d in uploads_path.iterdir() if d.is_dir()], reverse=True)
-        for upload_folder in upload_folders:
-            companies_csv = upload_folder / "companies.csv"
-            invoices_csv = upload_folder / "invoices.csv"
-            if companies_csv.exists() and companies_file is None:
-                companies_file = companies_csv
-                logger.info(f"Found companies.csv in uploads: {companies_csv}")
-            if invoices_csv.exists() and invoices_file is None:
-                invoices_file = invoices_csv
-                logger.info(f"Found invoices.csv in uploads: {invoices_csv}")
-            if companies_file and invoices_file:
-                break
+    if accumulated_companies.exists():
+        logger.info(f"Loading ACCUMULATED companies data: {accumulated_companies}")
+        companies_file = accumulated_companies
     
-    # Fallback to processed data if not found in uploads
+    if accumulated_invoices.exists():
+        logger.info(f"Loading ACCUMULATED invoices data: {accumulated_invoices}")
+        invoices_file = accumulated_invoices
+    
+    # PRIORITY 2: Try uploads folder if not found in accumulated
+    if companies_file is None or invoices_file is None:
+        if uploads_path.exists():
+            upload_folders = sorted([d for d in uploads_path.iterdir() if d.is_dir()], reverse=True)
+            for upload_folder in upload_folders:
+                companies_csv = upload_folder / "companies.csv"
+                invoices_csv = upload_folder / "invoices.csv"
+                if companies_csv.exists() and companies_file is None:
+                    companies_file = companies_csv
+                    logger.info(f"Found companies.csv in uploads: {companies_csv}")
+                if invoices_csv.exists() and invoices_file is None:
+                    invoices_file = invoices_csv
+                    logger.info(f"Found invoices.csv in uploads: {invoices_csv}")
+                if companies_file and invoices_file:
+                    break
+    
+    # PRIORITY 3: Fallback to processed data
     if companies_file is None:
         companies_file = data_path / "companies_processed.csv"
         if not companies_file.exists():
@@ -117,28 +141,21 @@ def load_model_and_data():
         logger.info(f"Loading invoices from: {invoices_file}")
     
     COMPANIES = pd.read_csv(companies_file)
-    INVOICES = pd.read_csv(invoices_file)
+    INVOICES = pd.read_csv(invoices_file) if invoices_file.exists() else pd.DataFrame()
     logger.info(f"Loaded {len(COMPANIES)} companies and {len(INVOICES)} invoices")
     
     logger.info("Loading graph...")
     # Handle PyTorch 2.6+ safe_globals for torch_geometric
+    graph_needs_rebuild = False
     try:
         GRAPH_DATA = torch.load(data_path / "graphs" / "graph_data.pt", weights_only=False)
+        # Check if graph has correct number of features
+        if GRAPH_DATA.x.shape[1] != NUM_NODE_FEATURES:
+            logger.warning(f"Graph has {GRAPH_DATA.x.shape[1]} features but model expects {NUM_NODE_FEATURES}")
+            graph_needs_rebuild = True
     except Exception as e:
-        logger.warning(f"Could not load graph with weights_only=False: {e}")
-        try:
-            from torch_geometric.data import Data as PyGData
-            import torch.serialization
-            torch.serialization.add_safe_globals([PyGData])
-            GRAPH_DATA = torch.load(data_path / "graphs" / "graph_data.pt", weights_only=False)
-        except Exception as e2:
-            logger.error(f"Failed to load graph: {e2}")
-            # Try loading without weights_only parameter
-            try:
-                GRAPH_DATA = torch.load(data_path / "graphs" / "graph_data.pt")
-            except Exception as e3:
-                logger.error(f"Failed to load graph with all methods: {e3}")
-                raise
+        logger.warning(f"Could not load graph: {e}")
+        graph_needs_rebuild = True
     
     # Load NetworkX graph for easier manipulation
     try:
@@ -151,23 +168,62 @@ def load_model_and_data():
     
     logger.info("Loading model...")
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    MODEL = GNNFraudDetector(in_channels=3, hidden_channels=64, out_channels=2, model_type="gcn").to(DEVICE)
+    # Use 12 features: turnover, sent_invoices, received_invoices, total_sent_amount, total_received_amount,
+    # unique_buyers, unique_sellers, circular_trading_score, gst_compliance_rate, late_filing_count, round_amount_ratio, buyer_concentration
+    MODEL = GNNFraudDetector(in_channels=NUM_NODE_FEATURES, hidden_channels=64, out_channels=2, model_type="gcn").to(DEVICE)
     
+    # If graph needs rebuild OR model weights don't match, rebuild everything
+    model_needs_training = False
     try:
         MODEL.load_state_dict(torch.load(models_path / "best_model.pt", map_location=DEVICE))
         logger.info("Model weights loaded successfully")
     except Exception as e:
-        logger.warning(f"Could not load model weights: {e}")
+        logger.warning(f"Could not load model weights (will train fresh): {e}")
+        model_needs_training = True
+
+    # Detect corrupted weights (NaN/Inf) and reinitialize
+    bad_param = _first_bad_param(MODEL)
+    if bad_param:
+        logger.warning(f"Detected NaN/Inf in model parameter '{bad_param}'. Reinitializing weights and retraining.")
+
+        def _reset(m):
+            if hasattr(m, "reset_parameters"):
+                m.reset_parameters()
+
+        MODEL.apply(_reset)
+        model_needs_training = True
     
-    with open(data_path / "graphs" / "node_mappings.pkl", "rb") as f:
-        MAPPINGS = pickle.load(f)
+    # If graph needs rebuild, do it now with proper features
+    if graph_needs_rebuild or model_needs_training:
+        logger.info("=" * 60)
+        logger.info("REBUILDING GRAPH AND TRAINING MODEL WITH NEW FEATURES")
+        logger.info("=" * 60)
+        
+        # Rebuild graph with extended features
+        NETWORKX_GRAPH, MAPPINGS, total_nodes, total_edges = rebuild_full_graph(COMPANIES, INVOICES)
+        logger.info(f"Graph rebuilt: {total_nodes} nodes, {total_edges} edges")
+        
+        # Convert to PyG format with extended features
+        GRAPH_DATA = rebuild_pyg_graph(NETWORKX_GRAPH, COMPANIES)
+        logger.info(f"PyG graph: {GRAPH_DATA.x.shape[0]} nodes, {GRAPH_DATA.x.shape[1]} features")
+
+        # Retrain if weights were missing/corrupted or graph changed
+        training_stats = retrain_full_model(GRAPH_DATA, epochs=80, lr=0.001)
+        
+        # Save the updated graph and model
+        save_updated_graph_and_model()
+        save_accumulated_data()
+    else:
+        with open(data_path / "graphs" / "node_mappings.pkl", "rb") as f:
+            MAPPINGS = pickle.load(f)
     
     # Get fraud predictions
     MODEL.eval()
     with torch.no_grad():
         out = MODEL(GRAPH_DATA.x.to(DEVICE), GRAPH_DATA.edge_index.to(DEVICE))
         predictions = torch.softmax(out, dim=1)
-        FRAUD_PROBA = predictions[:, 1].cpu().numpy()
+        predictions = torch.nan_to_num(predictions, nan=0.5, posinf=1.0, neginf=0.0)
+        FRAUD_PROBA = predictions[:, 1].clamp(0, 1).cpu().numpy()
     
     # Handle mismatch between companies data and graph nodes
     # This can happen when companies data has been updated but graph hasn't been rebuilt
@@ -185,7 +241,12 @@ def load_model_and_data():
             FRAUD_PROBA = padded_fraud_proba
     
     COMPANIES["fraud_probability"] = FRAUD_PROBA
-    COMPANIES["predicted_fraud"] = (FRAUD_PROBA > 0.5).astype(int)
+    # Use actual is_fraud labels if available, otherwise use model predictions
+    if "is_fraud" in COMPANIES.columns:
+        COMPANIES["predicted_fraud"] = COMPANIES["is_fraud"].astype(int)
+        logger.info(f"Using ground truth labels: {(COMPANIES['is_fraud']==1).sum()} fraud, {(COMPANIES['is_fraud']==0).sum()} non-fraud")
+    else:
+        COMPANIES["predicted_fraud"] = (FRAUD_PROBA > 0.5).astype(int)
     
     logger.info("Model and data loaded successfully!")
 
@@ -198,70 +259,103 @@ def upload_page():
 
 @app.route('/api/upload_data', methods=['POST'])
 def upload_data():
-    """Accept CSV uploads (companies or invoices), save and record metadata"""
+    """Accept CSV uploads - both companies (nodes) and invoices (edges) files"""
     try:
-        if 'file' not in request.files:
-            return jsonify({'error': 'no file part'}), 400
-        f = request.files['file']
-        if f.filename == '':
-            return jsonify({'error': 'no selected file'}), 400
-
-        fname = f.filename
-        # Save under data/uploads/<timestamp>/fname
+        # Check for dual file upload (new format)
+        companies_file = request.files.get('companies_file')
+        invoices_file = request.files.get('invoices_file')
+        
+        # Also support legacy single file upload
+        legacy_file = request.files.get('file')
+        
+        if not companies_file and not invoices_file and not legacy_file:
+            return jsonify({'error': 'No files uploaded. Please provide both companies and invoices CSV files.'}), 400
+        
+        # Setup upload directory
         uploads_dir = Path(__file__).parent / 'data' / 'uploads' / time.strftime('%Y%m%d')
         uploads_dir.mkdir(parents=True, exist_ok=True)
-        save_path = uploads_dir / fname
-        f.save(str(save_path))
-
-        # Quick validation: try reading head with pandas
-        import pandas as pd
-        df = pd.read_csv(save_path)
-        rows, cols = df.shape
-
-        # Optional encryption: form field 'encrypt' can be 'on'/'true'/'1'
-        encrypt_flag = str(request.form.get('encrypt', '')).lower() in ('1', 'true', 'on', 'yes')
-        stored_path = save_path
-        encrypted = 0
-        if encrypt_flag:
-            try:
-                enc_path = encrypt_file(save_path)
-                # remove plaintext copy
-                try:
-                    import os
-                    os.remove(save_path)
-                except Exception:
-                    pass
-                stored_path = enc_path
-                encrypted = 1
-            except Exception as ee:
-                logger.error(f"Encryption failed: {ee}", exc_info=True)
-                return jsonify({'error': 'encryption_failed', 'detail': str(ee)}), 500
-
-        # Record to DB (include encrypted flag)
-        record_upload(fname, stored_path, uploader=request.form.get('uploader', 'anonymous'), filetype='csv', rows=int(rows), columns=int(cols), encrypted=encrypted)
         
-        # Process the uploaded CSV for incremental learning
+        companies_path = None
+        invoices_path = None
+        total_rows = 0
+        total_cols = 0
+        
+        # Handle companies file
+        if companies_file and companies_file.filename:
+            companies_path = uploads_dir / companies_file.filename
+            companies_file.save(str(companies_path))
+            df_companies = pd.read_csv(companies_path)
+            total_rows += df_companies.shape[0]
+            total_cols = max(total_cols, df_companies.shape[1])
+            logger.info(f"Saved companies file: {companies_file.filename} ({df_companies.shape[0]} rows)")
+            record_upload(companies_file.filename, companies_path, uploader=request.form.get('uploader', 'anonymous'), filetype='csv', rows=int(df_companies.shape[0]), columns=int(df_companies.shape[1]), encrypted=0)
+        
+        # Handle invoices file
+        if invoices_file and invoices_file.filename:
+            invoices_path = uploads_dir / invoices_file.filename
+            invoices_file.save(str(invoices_path))
+            df_invoices = pd.read_csv(invoices_path)
+            total_rows += df_invoices.shape[0]
+            total_cols = max(total_cols, df_invoices.shape[1])
+            logger.info(f"Saved invoices file: {invoices_file.filename} ({df_invoices.shape[0]} rows)")
+            record_upload(invoices_file.filename, invoices_path, uploader=request.form.get('uploader', 'anonymous'), filetype='csv', rows=int(df_invoices.shape[0]), columns=int(df_invoices.shape[1]), encrypted=0)
+        
+        # Handle legacy single file upload
+        if legacy_file and legacy_file.filename and not companies_path and not invoices_path:
+            legacy_path = uploads_dir / legacy_file.filename
+            legacy_file.save(str(legacy_path))
+            df = pd.read_csv(legacy_path)
+            total_rows = df.shape[0]
+            total_cols = df.shape[1]
+            record_upload(legacy_file.filename, legacy_path, uploader=request.form.get('uploader', 'anonymous'), filetype='csv', rows=int(total_rows), columns=int(total_cols), encrypted=0)
+            
+            # Process single file for incremental learning
+            try:
+                logger.info(f"Starting incremental learning for file: {legacy_file.filename}")
+                incremental_results = process_incremental_learning(legacy_path, legacy_file.filename)
+                logger.info(f"Incremental learning completed for file: {legacy_file.filename}")
+                return jsonify({
+                    'status': 'ok',
+                    'message': f'Successfully processed {legacy_file.filename}',
+                    'filename': legacy_file.filename,
+                    'rows': int(total_rows),
+                    'columns': int(total_cols),
+                    'incremental_learning': incremental_results
+                })
+            except Exception as e:
+                logger.error(f"Incremental learning failed: {e}", exc_info=True)
+                return jsonify({
+                    'status': 'ok',
+                    'message': f'File uploaded but incremental learning failed: {str(e)}',
+                    'filename': legacy_file.filename,
+                    'rows': int(total_rows),
+                    'columns': int(total_cols)
+                })
+        
+        # Process dual file upload for incremental learning
         incremental_results = None
         try:
-            logger.info(f"Starting incremental learning for file: {fname}")
-            incremental_results = process_incremental_learning(save_path, fname)
-            logger.info(f"Incremental learning completed for file: {fname}")
+            logger.info(f"Starting incremental learning with both companies and invoices files")
+            incremental_results = process_dual_file_upload(companies_path, invoices_path)
+            logger.info(f"Incremental learning completed")
         except Exception as e:
-            logger.error(f"Incremental learning failed for {fname}: {e}", exc_info=True)
-            # Don't fail the upload if incremental learning fails
-            pass
-
+            logger.error(f"Incremental learning failed: {e}", exc_info=True)
+            return jsonify({
+                'status': 'partial',
+                'message': f'Files uploaded but incremental learning failed: {str(e)}',
+                'error': str(e)
+            }), 200
+        
+        # Build response
         response_data = {
-            'status': 'ok', 
-            'filename': fname, 
-            'rows': int(rows), 
-            'columns': int(cols), 
-            'encrypted': bool(encrypted)
+            'status': 'ok',
+            'message': 'Successfully processed both datasets!',
+            'total_rows': int(total_rows),
+            'total_columns': int(total_cols)
         }
         
-        # Add incremental learning results if available
         if incremental_results:
-            response_data['incremental_learning'] = incremental_results
+            response_data.update(incremental_results)
             
         return jsonify(response_data)
 
@@ -272,11 +366,42 @@ def upload_data():
 
 def process_incremental_learning(file_path, filename):
     """
-    Process uploaded CSV for incremental learning
-    """
-    global COMPANIES, INVOICES, NETWORKX_GRAPH
+    Process uploaded CSV for TRUE incremental learning with data ACCUMULATION.
     
-    logger.info(f"Starting incremental learning for {filename}")
+    This function:
+    1. Loads new data from uploaded CSV
+    2. MERGES with existing accumulated data (deduplicates by company_id)
+    3. Rebuilds the FULL graph with accumulated data
+    4. Retrains model on full accumulated graph
+    5. Updates fraud scores for ALL companies
+    6. Persists accumulated state for next session
+    7. Dashboard shows ALL accumulated data
+    """
+    global COMPANIES, INVOICES, NETWORKX_GRAPH, GRAPH_DATA, MAPPINGS, FRAUD_PROBA, MODEL
+    global UPLOAD_HISTORY, TOTAL_UPLOADS, LAST_RETRAIN_TIME, ACCUMULATED_DATA_PATH
+    
+    import time as time_module
+    start_time = time_module.time()
+    
+    logger.info(f"=" * 60)
+    logger.info(f"INCREMENTAL LEARNING: Processing {filename}")
+    logger.info(f"=" * 60)
+    
+    # Track upload
+    TOTAL_UPLOADS += 1
+    upload_record = {
+        "upload_id": TOTAL_UPLOADS,
+        "filename": filename,
+        "timestamp": time_module.strftime("%Y-%m-%d %H:%M:%S"),
+        "file_path": str(file_path)
+    }
+    UPLOAD_HISTORY.append(upload_record)
+    
+    # Record counts BEFORE processing
+    companies_before = len(COMPANIES) if COMPANIES is not None else 0
+    invoices_before = len(INVOICES) if INVOICES is not None else 0
+    
+    logger.info(f"State BEFORE: {companies_before} companies, {invoices_before} invoices")
     
     # Load the uploaded data
     df = pd.read_csv(file_path)
@@ -291,7 +416,11 @@ def process_incremental_learning(file_path, filename):
         new_companies_df = df.copy()
         # Apply basic cleaning (similar to clean_data.py)
         if "turnover" not in new_companies_df.columns:
-            new_companies_df["turnover"] = 0
+            # Try to use avg_monthly_turnover if available
+            if "avg_monthly_turnover" in new_companies_df.columns:
+                new_companies_df["turnover"] = new_companies_df["avg_monthly_turnover"]
+            else:
+                new_companies_df["turnover"] = 0
         if "location" not in new_companies_df.columns:
             new_companies_df["location"] = "Unknown"
         if "is_fraud" not in new_companies_df.columns:
@@ -378,138 +507,647 @@ def process_incremental_learning(file_path, filename):
         # Fill NaN with 0
         new_companies_df.fillna(0, inplace=True)
     
-    # Update graph with new data (without converting company_id to int)
-    NETWORKX_GRAPH, MAPPINGS, nodes_added, edges_added = update_graph(new_companies_df, new_invoices_df)
+    # =========================================================================
+    # STEP 1: ACCUMULATE DATA (Merge new with existing)
+    # =========================================================================
+    logger.info("STEP 1: Accumulating data...")
     
-    # Identify affected nodes
-    affected_nodes = identify_affected_nodes(new_companies_df, new_invoices_df, k_hop=2)
+    # Accumulate companies (keep latest version if duplicate company_id)
+    if COMPANIES is not None and len(COMPANIES) > 0:
+        # Ensure company_id is string in both DataFrames
+        COMPANIES["company_id"] = COMPANIES["company_id"].astype(str).str.strip()
+        new_companies_df["company_id"] = new_companies_df["company_id"].astype(str).str.strip()
+        
+        # Combine old and new, keeping latest version of duplicates
+        combined_companies = pd.concat([COMPANIES, new_companies_df], ignore_index=True)
+        COMPANIES = combined_companies.drop_duplicates(subset=["company_id"], keep="last")
+        logger.info(f"Accumulated companies: {len(COMPANIES)} (added {len(new_companies_df)} new records)")
+    else:
+        COMPANIES = new_companies_df.copy()
+        logger.info(f"Initialized companies with {len(COMPANIES)} records")
     
-    # Extract subgraph
-    subgraph = extract_subgraph(affected_nodes, k_hop=2)
+    # Accumulate invoices (append all - invoices are unique transactions)
+    if not new_invoices_df.empty:
+        if INVOICES is not None and len(INVOICES) > 0:
+            # Ensure invoice_id column exists for deduplication
+            if "invoice_id" in new_invoices_df.columns and "invoice_id" in INVOICES.columns:
+                combined_invoices = pd.concat([INVOICES, new_invoices_df], ignore_index=True)
+                INVOICES = combined_invoices.drop_duplicates(subset=["invoice_id"], keep="last")
+            else:
+                INVOICES = pd.concat([INVOICES, new_invoices_df], ignore_index=True)
+            logger.info(f"Accumulated invoices: {len(INVOICES)} records")
+        else:
+            INVOICES = new_invoices_df.copy()
+            logger.info(f"Initialized invoices with {len(INVOICES)} records")
     
-    # Get subgraph statistics
-    subgraph_nodes = subgraph.number_of_nodes()
-    subgraph_edges = subgraph.number_of_edges()
+    # Record counts AFTER accumulation
+    companies_after = len(COMPANIES)
+    invoices_after = len(INVOICES) if INVOICES is not None else 0
+    new_companies_count = companies_after - companies_before
+    new_invoices_count = invoices_after - invoices_before
     
-    # Identify central nodes (nodes with highest degree)
-    central_nodes = []
-    if subgraph_nodes > 0:
-        node_degrees = [(node, subgraph.degree(node)) for node in subgraph.nodes()]
-        node_degrees.sort(key=lambda x: x[1], reverse=True)
-        central_nodes = [node for node, degree in node_degrees[:min(5, len(node_degrees))]]
+    logger.info(f"State AFTER: {companies_after} companies (+{new_companies_count}), {invoices_after} invoices (+{new_invoices_count})")
     
-    # Count high-risk nodes in subgraph
-    high_risk_count = 0
-    fraud_node_count = 0
-    if hasattr(subgraph, 'nodes') and len(subgraph.nodes()) > 0:
-        for node in subgraph.nodes():
-            if node in NETWORKX_GRAPH.nodes():
-                node_data = NETWORKX_GRAPH.nodes[node]
-                if 'is_fraud' in node_data and node_data['is_fraud'] == 1:
-                    fraud_node_count += 1
-                # This would be updated after retraining, but we can estimate based on existing data
+    # =========================================================================
+    # STEP 2: REBUILD FULL GRAPH from accumulated data
+    # =========================================================================
+    logger.info("STEP 2: Rebuilding full graph from accumulated data...")
     
-    # Convert subgraph to PyTorch Geometric format
-    subgraph_data, _, _ = networkx_to_pytorch_geometric_subgraph(subgraph, MAPPINGS["node_to_idx"])
+    NETWORKX_GRAPH, MAPPINGS, total_nodes, total_edges = rebuild_full_graph(COMPANIES, INVOICES)
     
-    # Perform incremental retraining
-    updated_model_state = incremental_retrain(subgraph_data, epochs=50, lr=0.001)
+    logger.info(f"Full graph rebuilt: {total_nodes} nodes, {total_edges} edges")
     
-    # Update global embeddings
+    # =========================================================================
+    # STEP 3: RETRAIN MODEL on full accumulated graph
+    # =========================================================================
+    logger.info("STEP 3: Retraining model on full accumulated graph...")
+    
+    # Rebuild PyG graph from accumulated data
+    GRAPH_DATA = rebuild_pyg_graph(NETWORKX_GRAPH, COMPANIES)
+    
+    # Retrain model on full graph
+    training_stats = retrain_full_model(GRAPH_DATA, epochs=100, lr=0.001)
+    
+    # =========================================================================
+    # STEP 4: UPDATE FRAUD SCORES for ALL companies
+    # =========================================================================
+    logger.info("STEP 4: Updating fraud scores for ALL companies...")
+    
     update_global_embeddings()
     
-    # Save updated graph and model
+    # =========================================================================
+    # STEP 5: PERSIST accumulated state
+    # =========================================================================
+    logger.info("STEP 5: Persisting accumulated state...")
+    
+    save_accumulated_data()
     save_updated_graph_and_model()
     
-    logger.info(f"Incremental learning completed successfully - {nodes_added} nodes and {edges_added} edges added")
+    # Update last retrain time
+    LAST_RETRAIN_TIME = time_module.strftime("%Y-%m-%d %H:%M:%S")
+    
+    # Calculate processing time
+    processing_time = time_module.time() - start_time
+    
+    # Count high-risk companies after retraining
+    high_risk_count = int((FRAUD_PROBA > 0.7).sum()) if FRAUD_PROBA is not None else 0
+    fraud_count = int((COMPANIES["predicted_fraud"] == 1).sum()) if "predicted_fraud" in COMPANIES.columns else 0
+    
+    logger.info(f"=" * 60)
+    logger.info(f"INCREMENTAL LEARNING COMPLETE")
+    logger.info(f"Total companies: {companies_after}, High-risk: {high_risk_count}, Fraud: {fraud_count}")
+    logger.info(f"Processing time: {processing_time:.2f}s")
+    logger.info(f"=" * 60)
+    
     return {
-        "nodes_added": nodes_added,
-        "edges_added": edges_added,
-        "affected_nodes": len(affected_nodes),
-        "subgraph_nodes": subgraph_nodes,
-        "subgraph_edges": subgraph_edges,
-        "central_nodes_count": len(central_nodes),
-        "high_risk_nodes": high_risk_count,
-        "fraud_nodes": fraud_node_count
+        "status": "success",
+        "companies_before": companies_before,
+        "companies_after": companies_after,
+        "new_companies": new_companies_count,
+        "invoices_before": invoices_before,
+        "invoices_after": invoices_after,
+        "new_invoices": new_invoices_count,
+        "total_nodes": total_nodes,
+        "total_edges": total_edges,
+        "high_risk_count": high_risk_count,
+        "fraud_count": fraud_count,
+        "training_loss": training_stats.get("final_loss", 0),
+        "training_accuracy": training_stats.get("accuracy", 0),
+        "processing_time_seconds": round(processing_time, 2),
+        "upload_number": TOTAL_UPLOADS
     }
 
 
-def update_graph(new_companies_df, new_invoices_df):
+def process_dual_file_upload(companies_path, invoices_path):
     """
-    Update the existing graph with new nodes and edges from uploaded data
-    Returns updated NetworkX graph and mappings
+    Process dual file upload (companies + invoices) for TRUE incremental learning.
+    
+    This function:
+    1. Loads both companies (nodes) and invoices (edges) data
+    2. MERGES with existing accumulated data
+    3. Rebuilds the FULL graph with accumulated data
+    4. Retrains model on full accumulated graph
+    5. Returns comprehensive stats
     """
-    global NETWORKX_GRAPH, MAPPINGS, COMPANIES, INVOICES
+    global COMPANIES, INVOICES, NETWORKX_GRAPH, GRAPH_DATA, MAPPINGS, FRAUD_PROBA, MODEL
+    global UPLOAD_HISTORY, TOTAL_UPLOADS, LAST_RETRAIN_TIME
     
-    logger.info("Updating graph with new data...")
+    import time as time_module
+    start_time = time_module.time()
     
-    # Count initial nodes and edges
-    initial_nodes = NETWORKX_GRAPH.number_of_nodes() if NETWORKX_GRAPH else 0
-    initial_edges = NETWORKX_GRAPH.number_of_edges() if NETWORKX_GRAPH else 0
+    logger.info(f"=" * 60)
+    logger.info(f"DUAL FILE INCREMENTAL LEARNING: Processing companies and invoices")
+    logger.info(f"=" * 60)
     
-    # Update companies data
-    COMPANIES = pd.concat([COMPANIES, new_companies_df], ignore_index=True)
-    COMPANIES = COMPANIES.drop_duplicates(subset=["company_id"], keep="last")
+    # Track upload
+    TOTAL_UPLOADS += 1
+    upload_record = {
+        "upload_id": TOTAL_UPLOADS,
+        "companies_file": str(companies_path) if companies_path else None,
+        "invoices_file": str(invoices_path) if invoices_path else None,
+        "timestamp": time_module.strftime("%Y-%m-%d %H:%M:%S")
+    }
+    UPLOAD_HISTORY.append(upload_record)
     
-    # Update invoices data
-    INVOICES = pd.concat([INVOICES, new_invoices_df], ignore_index=True)
+    # Record counts BEFORE processing
+    companies_before = len(COMPANIES) if COMPANIES is not None else 0
+    invoices_before = len(INVOICES) if INVOICES is not None else 0
     
-    # Add new nodes to NetworkX graph
-    nodes_added = 0
-    for _, row in new_companies_df.iterrows():
+    logger.info(f"State BEFORE: {companies_before} companies, {invoices_before} invoices")
+    
+    # Load companies data
+    new_companies_df = pd.DataFrame()
+    if companies_path and Path(companies_path).exists():
+        new_companies_df = pd.read_csv(companies_path)
+        logger.info(f"Loaded {len(new_companies_df)} companies from {companies_path}")
+        
+        # Clean and standardize company data
+        if "company_id" in new_companies_df.columns:
+            new_companies_df["company_id"] = new_companies_df["company_id"].astype(str).str.strip()
+        elif "gstin" in new_companies_df.columns:
+            new_companies_df["company_id"] = new_companies_df["gstin"].astype(str).str.strip()
+        
+        # Ensure turnover column
+        if "turnover" not in new_companies_df.columns:
+            if "avg_monthly_turnover" in new_companies_df.columns:
+                new_companies_df["turnover"] = new_companies_df["avg_monthly_turnover"]
+            else:
+                new_companies_df["turnover"] = 0
+        
+        # Ensure is_fraud column
+        if "is_fraud" not in new_companies_df.columns:
+            new_companies_df["is_fraud"] = 0
+        
+        new_companies_df["turnover"] = pd.to_numeric(new_companies_df["turnover"], errors='coerce').fillna(0)
+        new_companies_df["is_fraud"] = pd.to_numeric(new_companies_df["is_fraud"], errors='coerce').fillna(0).astype(int)
+    
+    # Load invoices data
+    new_invoices_df = pd.DataFrame()
+    if invoices_path and Path(invoices_path).exists():
+        new_invoices_df = pd.read_csv(invoices_path)
+        logger.info(f"Loaded {len(new_invoices_df)} invoices from {invoices_path}")
+        
+        # Clean and standardize invoice data
+        new_invoices_df["seller_id"] = new_invoices_df["seller_id"].astype(str).str.strip()
+        new_invoices_df["buyer_id"] = new_invoices_df["buyer_id"].astype(str).str.strip()
+        
+        if "amount" not in new_invoices_df.columns:
+            new_invoices_df["amount"] = 0
+        if "itc_claimed" not in new_invoices_df.columns:
+            new_invoices_df["itc_claimed"] = 0
+        
+        new_invoices_df["amount"] = pd.to_numeric(new_invoices_df["amount"], errors='coerce').fillna(0)
+        new_invoices_df["itc_claimed"] = pd.to_numeric(new_invoices_df["itc_claimed"], errors='coerce').fillna(0)
+    
+    # Engineer features from invoices for companies
+    if not new_companies_df.empty and not new_invoices_df.empty:
+        logger.info("Engineering transaction features from invoices...")
+        
+        # Seller statistics
+        seller_stats = new_invoices_df.groupby("seller_id").agg({
+            "amount": ["sum", "count"],
+            "buyer_id": "nunique"
+        }).reset_index()
+        seller_stats.columns = ["company_id", "total_sent_amount", "sent_invoice_count", "unique_buyers"]
+        seller_stats["company_id"] = seller_stats["company_id"].astype(str)
+        
+        # Buyer statistics
+        buyer_stats = new_invoices_df.groupby("buyer_id").agg({
+            "amount": ["sum", "count"],
+            "seller_id": "nunique"
+        }).reset_index()
+        buyer_stats.columns = ["company_id", "total_received_amount", "received_invoice_count", "unique_sellers"]
+        buyer_stats["company_id"] = buyer_stats["company_id"].astype(str)
+        
+        # Merge with companies
+        new_companies_df = new_companies_df.merge(seller_stats, on="company_id", how="left")
+        new_companies_df = new_companies_df.merge(buyer_stats, on="company_id", how="left")
+        new_companies_df.fillna(0, inplace=True)
+    
+    # =========================================================================
+    # ACCUMULATE DATA
+    # =========================================================================
+    logger.info("Accumulating data...")
+    
+    # Accumulate companies
+    if not new_companies_df.empty:
+        if COMPANIES is not None and len(COMPANIES) > 0:
+            COMPANIES["company_id"] = COMPANIES["company_id"].astype(str).str.strip()
+            combined = pd.concat([COMPANIES, new_companies_df], ignore_index=True)
+            COMPANIES = combined.drop_duplicates(subset=["company_id"], keep="last")
+        else:
+            COMPANIES = new_companies_df.copy()
+    
+    # Accumulate invoices
+    if not new_invoices_df.empty:
+        if INVOICES is not None and len(INVOICES) > 0:
+            if "invoice_id" in new_invoices_df.columns and "invoice_id" in INVOICES.columns:
+                combined = pd.concat([INVOICES, new_invoices_df], ignore_index=True)
+                INVOICES = combined.drop_duplicates(subset=["invoice_id"], keep="last")
+            else:
+                INVOICES = pd.concat([INVOICES, new_invoices_df], ignore_index=True)
+        else:
+            INVOICES = new_invoices_df.copy()
+    
+    # Record counts AFTER
+    companies_after = len(COMPANIES) if COMPANIES is not None else 0
+    invoices_after = len(INVOICES) if INVOICES is not None else 0
+    new_companies_count = companies_after - companies_before
+    new_invoices_count = invoices_after - invoices_before
+    
+    logger.info(f"State AFTER: {companies_after} companies (+{new_companies_count}), {invoices_after} invoices (+{new_invoices_count})")
+    
+    # =========================================================================
+    # REBUILD GRAPH
+    # =========================================================================
+    logger.info("Rebuilding full graph...")
+    NETWORKX_GRAPH, MAPPINGS, total_nodes, total_edges = rebuild_full_graph(COMPANIES, INVOICES)
+    
+    # =========================================================================
+    # REBUILD PyG DATA
+    # =========================================================================
+    logger.info("Rebuilding PyG graph data...")
+    GRAPH_DATA = rebuild_pyg_graph(NETWORKX_GRAPH, COMPANIES)
+    
+    # =========================================================================
+    # RETRAIN MODEL
+    # =========================================================================
+    logger.info("Retraining model on full graph...")
+    training_stats = retrain_full_model(GRAPH_DATA, epochs=100, lr=0.001)
+    
+    # =========================================================================
+    # UPDATE FRAUD SCORES
+    # =========================================================================
+    logger.info("Updating fraud scores...")
+    update_global_embeddings()
+    
+    # =========================================================================
+    # PERSIST STATE
+    # =========================================================================
+    logger.info("Persisting state...")
+    save_accumulated_data()
+    save_updated_graph_and_model()
+    
+    LAST_RETRAIN_TIME = time_module.strftime("%Y-%m-%d %H:%M:%S")
+    processing_time = time_module.time() - start_time
+    
+    high_risk_count = int((FRAUD_PROBA > 0.7).sum()) if FRAUD_PROBA is not None else 0
+    fraud_count = int((COMPANIES["predicted_fraud"] == 1).sum()) if COMPANIES is not None and "predicted_fraud" in COMPANIES.columns else 0
+    
+    logger.info(f"=" * 60)
+    logger.info(f"DUAL FILE PROCESSING COMPLETE")
+    logger.info(f"Total: {companies_after} companies, {invoices_after} invoices")
+    logger.info(f"Processing time: {processing_time:.2f}s")
+    logger.info(f"=" * 60)
+    
+    return {
+        "status": "success",
+        "message": f"Successfully processed {new_companies_count} companies and {new_invoices_count} invoices",
+        "new_nodes": new_companies_count,
+        "new_edges": new_invoices_count,
+        "total_nodes": total_nodes,
+        "total_edges": total_edges,
+        "datasets_uploaded": TOTAL_UPLOADS,
+        "high_risk_count": high_risk_count,
+        "fraud_count": fraud_count,
+        "processing_time": round(processing_time, 2)
+    }
+
+
+# Number of features used in the GNN model (must match in_channels)
+NUM_NODE_FEATURES = 12  # Updated feature count
+
+def rebuild_full_graph(companies_df, invoices_df):
+    """
+    Rebuild the complete NetworkX graph from accumulated data.
+    This ensures graph always represents the FULL accumulated state.
+    Now with EXTENDED FEATURES for better fraud detection.
+    """
+    global NETWORKX_GRAPH, MAPPINGS
+    
+    logger.info("Rebuilding NetworkX graph from accumulated data with extended features...")
+    
+    # Create fresh graph
+    G = nx.DiGraph()
+    
+    # Add all company nodes with EXTENDED FEATURES
+    for _, row in companies_df.iterrows():
         try:
-            company_id = row["company_id"]  # Keep as string
-            if company_id not in NETWORKX_GRAPH.nodes():
-                NETWORKX_GRAPH.add_node(
-                    company_id,  # Keep as string
-                    turnover=float(row.get("turnover", 0)),
-                    location=str(row.get("location", "Unknown")),
-                    is_fraud=int(row.get("is_fraud", 0)),
-                    sent_invoices=float(row.get("sent_invoice_count", 0)),
-                    received_invoices=float(row.get("received_invoice_count", 0)),
-                    total_sent_amount=float(row.get("total_sent_amount", 0)),
-                    total_received_amount=float(row.get("total_received_amount", 0))
-                )
-                nodes_added += 1
+            company_id = str(row["company_id"]).strip()
+            
+            # Basic features
+            turnover = float(row.get("turnover", row.get("avg_monthly_turnover", 0)))
+            sent_invoices = float(row.get("sent_invoice_count", row.get("total_invoices_sent", 0)))
+            received_invoices = float(row.get("received_invoice_count", row.get("total_invoices_received", 0)))
+            total_sent_amount = float(row.get("total_sent_amount", row.get("total_amount_sent", 0)))
+            total_received_amount = float(row.get("total_received_amount", row.get("total_amount_received", 0)))
+            
+            # Extended features from dataset (risk indicators)
+            unique_buyers = float(row.get("unique_buyers", 0))
+            unique_sellers = float(row.get("unique_sellers", 0))
+            circular_trading_score = float(row.get("circular_trading_score", 0))
+            gst_compliance_rate = float(row.get("gst_compliance_rate", 1.0))
+            late_filing_count = float(row.get("late_filing_count", 0))
+            round_amount_ratio = float(row.get("round_amount_ratio", 0))
+            buyer_concentration = float(row.get("buyer_concentration", 0))
+            
+            G.add_node(
+                company_id,
+                # Basic features
+                turnover=turnover,
+                sent_invoices=sent_invoices,
+                received_invoices=received_invoices,
+                total_sent_amount=total_sent_amount,
+                total_received_amount=total_received_amount,
+                # Extended features
+                unique_buyers=unique_buyers,
+                unique_sellers=unique_sellers,
+                circular_trading_score=circular_trading_score,
+                gst_compliance_rate=gst_compliance_rate,
+                late_filing_count=late_filing_count,
+                round_amount_ratio=round_amount_ratio,
+                buyer_concentration=buyer_concentration,
+                # Labels
+                location=str(row.get("location", row.get("city", "Unknown"))),
+                is_fraud=int(row.get("is_fraud", 0))
+            )
         except Exception as e:
             logger.warning(f"Error adding node {row.get('company_id')}: {e}")
             continue
     
-    # Add new edges to NetworkX graph
+    # Add all edges from invoices
     edges_added = 0
-    for _, row in new_invoices_df.iterrows():
-        try:
-            seller = row["seller_id"]  # Keep as string
-            buyer = row["buyer_id"]    # Keep as string
-            
-            # Only add edge if both nodes exist
-            if seller in NETWORKX_GRAPH and buyer in NETWORKX_GRAPH:
-                # Check if edge already exists to avoid duplicates
-                if not NETWORKX_GRAPH.has_edge(seller, buyer):
-                    NETWORKX_GRAPH.add_edge(
-                        seller,
-                        buyer,
-                        amount=float(row.get("amount", 0)),
-                        itc_claimed=float(row.get("itc_claimed", 0))
-                    )
-                    edges_added += 1
-        except Exception as e:
-            logger.warning(f"Error adding edge: {e}")
-            continue
+    if invoices_df is not None and len(invoices_df) > 0:
+        for _, row in invoices_df.iterrows():
+            try:
+                seller = str(row["seller_id"]).strip()
+                buyer = str(row["buyer_id"]).strip()
+                
+                # Add edge if both nodes exist
+                if seller in G.nodes() and buyer in G.nodes():
+                    # For multi-edges, we aggregate or add new edge
+                    if G.has_edge(seller, buyer):
+                        # Update existing edge with aggregated amount
+                        G[seller][buyer]["amount"] += float(row.get("amount", 0))
+                        G[seller][buyer]["itc_claimed"] += float(row.get("itc_claimed", 0))
+                    else:
+                        G.add_edge(
+                            seller,
+                            buyer,
+                            amount=float(row.get("amount", 0)),
+                            itc_claimed=float(row.get("itc_claimed", 0))
+                        )
+                        edges_added += 1
+            except Exception as e:
+                continue
     
     # Update mappings
-    node_list = sorted(list(NETWORKX_GRAPH.nodes()))
+    node_list = sorted(list(G.nodes()))
     node_to_idx = {node: idx for idx, node in enumerate(node_list)}
     MAPPINGS = {
         "node_list": node_list,
         "node_to_idx": node_to_idx
     }
     
-    final_nodes = NETWORKX_GRAPH.number_of_nodes()
-    final_edges = NETWORKX_GRAPH.number_of_edges()
+    NETWORKX_GRAPH = G
     
-    logger.info(f"Graph updated: {final_nodes} nodes (+{nodes_added}), {final_edges} edges (+{edges_added})")
-    return NETWORKX_GRAPH, MAPPINGS, nodes_added, edges_added
+    logger.info(f"Graph rebuilt: {G.number_of_nodes()} nodes, {G.number_of_edges()} edges")
+    return G, MAPPINGS, G.number_of_nodes(), G.number_of_edges()
+
+
+def rebuild_pyg_graph(G, companies_df):
+    """
+    Convert NetworkX graph to PyTorch Geometric Data object.
+    Now with EXTENDED FEATURES (12 features) and NORMALIZATION.
+    """
+    global GRAPH_DATA, NUM_NODE_FEATURES
+    
+    logger.info("Converting NetworkX to PyTorch Geometric format with extended features...")
+    
+    node_list = sorted(list(G.nodes()))
+    node_to_idx = {node: idx for idx, node in enumerate(node_list)}
+    
+    # Build feature matrix with EXTENDED FEATURES (12 features)
+    x_list = []
+    y_list = []
+    
+    for node in node_list:
+        node_data = G.nodes[node]
+        features = [
+            # Basic features (5)
+            float(node_data.get("turnover", 0)),
+            float(node_data.get("sent_invoices", 0)),
+            float(node_data.get("received_invoices", 0)),
+            float(node_data.get("total_sent_amount", 0)),
+            float(node_data.get("total_received_amount", 0)),
+            # Extended features (7) - risk indicators
+            float(node_data.get("unique_buyers", 0)),
+            float(node_data.get("unique_sellers", 0)),
+            float(node_data.get("circular_trading_score", 0)),
+            float(node_data.get("gst_compliance_rate", 1.0)),
+            float(node_data.get("late_filing_count", 0)),
+            float(node_data.get("round_amount_ratio", 0)),
+            float(node_data.get("buyer_concentration", 0))
+        ]
+        x_list.append(features)
+        y_list.append(int(node_data.get("is_fraud", 0)))
+    
+    x = torch.tensor(x_list, dtype=torch.float32)
+    # Replace NaN/Inf with zeros to avoid corrupting normalization and model inputs
+    x = torch.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0)
+    y = torch.tensor(y_list, dtype=torch.long)
+    
+    # Normalize features (important for GNN training)
+    # Use min-max normalization to [0, 1] range
+    x_min = x.min(dim=0, keepdim=True)[0]
+    x_max = x.max(dim=0, keepdim=True)[0]
+    x_range = x_max - x_min
+    x_range[x_range == 0] = 1  # Avoid division by zero
+    x = (x - x_min) / x_range
+    
+    logger.info(f"Feature matrix shape: {x.shape}, normalized to [0,1] range")
+    
+    # Build edge index
+    edge_index = []
+    edge_attr = []
+    
+    for u, v, data in G.edges(data=True):
+        if u in node_to_idx and v in node_to_idx:
+            u_idx = node_to_idx[u]
+            v_idx = node_to_idx[v]
+            edge_index.append([u_idx, v_idx])
+            edge_attr.append([float(data.get("amount", 0))])
+    
+    if edge_index:
+        edge_index = torch.tensor(edge_index, dtype=torch.long).t().contiguous()
+        edge_attr = torch.tensor(edge_attr, dtype=torch.float32)
+    else:
+        edge_index = torch.zeros((2, 0), dtype=torch.long)
+        edge_attr = torch.zeros((0, 1), dtype=torch.float32)
+    
+    # Create PyG Data object
+    data = Data(
+        x=x,
+        edge_index=edge_index,
+        edge_attr=edge_attr,
+        y=y
+    )
+    
+    GRAPH_DATA = data
+    
+    logger.info(f"PyG graph: {data.num_nodes} nodes, {data.num_edges} edges, features shape {x.shape}")
+    return data
+
+
+def retrain_full_model(graph_data, epochs=200, lr=0.001):
+    """
+    Retrain model on the FULL accumulated graph.
+    Uses class-weighted loss to handle imbalanced fraud/non-fraud classes.
+    """
+    global MODEL, DEVICE
+    
+    logger.info(f"Retraining model on full graph ({graph_data.num_nodes} nodes)...")
+    
+    # Move data to device
+    graph_data = graph_data.to(DEVICE)
+    
+    # Compute class weights to address imbalance (fraud is minority class)
+    y = graph_data.y.cpu().numpy()
+    num_class_0 = (y == 0).sum()
+    num_class_1 = (y == 1).sum()
+    total = len(y)
+    logger.info(f"Class distribution: Non-fraud={num_class_0} ({100*num_class_0/total:.1f}%), Fraud={num_class_1} ({100*num_class_1/total:.1f}%)")
+
+    # Weight fraud class higher so model learns to detect it
+    if num_class_1 > 0:
+        weight_0 = 1.0
+        weight_1 = min(num_class_0 / num_class_1, 10.0)  # Cap at 10x to avoid instability
+    else:
+        weight_0 = 1.0
+        weight_1 = 1.0
+    class_weights = torch.tensor([weight_0, weight_1], dtype=torch.float32, device=DEVICE)
+    logger.info(f"Using class weights: non-fraud={weight_0:.2f}, fraud={weight_1:.2f}")
+    criterion = torch.nn.CrossEntropyLoss(weight=class_weights)
+    
+    # Create optimizer
+    optimizer = torch.optim.Adam(MODEL.parameters(), lr=lr, weight_decay=1e-5)
+    
+    # Learning rate scheduler
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=15)
+    
+    # Training loop
+    MODEL.train()
+    best_loss = float('inf')
+    patience = 30
+    patience_counter = 0
+    best_model_state = None
+    
+    for epoch in range(epochs):
+        optimizer.zero_grad()
+        out = MODEL(graph_data.x, graph_data.edge_index)
+        loss = criterion(out, graph_data.y)
+        
+        # Check for NaN
+        if torch.isnan(loss) or torch.isinf(loss):
+            logger.warning(f"NaN/Inf loss at epoch {epoch+1}")
+            patience_counter += 1
+            if patience_counter > patience:
+                logger.info(f"Early stopping at epoch {epoch+1} due to NaN losses")
+                break
+            continue
+        
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(MODEL.parameters(), max_norm=1.0)
+        optimizer.step()
+        
+        scheduler.step(loss.item())
+        
+        # Track best model
+        if loss.item() < best_loss:
+            best_loss = loss.item()
+            best_model_state = MODEL.state_dict().copy()
+            patience_counter = 0
+        else:
+            patience_counter += 1
+        
+        if (epoch + 1) % 30 == 0:
+            MODEL.eval()
+            with torch.no_grad():
+                pred = out.argmax(dim=1)
+                correct = (pred == graph_data.y).sum().item()
+                accuracy = correct / graph_data.num_nodes
+            MODEL.train()
+            logger.info(f"Epoch {epoch+1}/{epochs}, Loss: {loss.item():.4f}, Acc: {accuracy:.3f}")
+        
+        # Early stopping
+        if patience_counter >= patience:
+            logger.info(f"Early stopping at epoch {epoch+1}")
+            break
+    
+    # Restore best model
+    if best_model_state is not None:
+        MODEL.load_state_dict(best_model_state)
+    
+    MODEL.eval()
+    
+    # Final metrics
+    with torch.no_grad():
+        out = MODEL(graph_data.x, graph_data.edge_index)
+        pred = out.argmax(dim=1)
+        correct = (pred == graph_data.y).sum().item()
+        final_accuracy = correct / graph_data.num_nodes
+    
+    logger.info(f"Training complete. Best loss: {best_loss:.4f}, Final Acc: {final_accuracy:.3f}")
+    
+    return {
+        "final_loss": best_loss,
+        "accuracy": final_accuracy,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1_score": 0.0,
+        "epochs": epochs,
+        "class_weights": None
+    }
+
+
+def save_accumulated_data():
+    """
+    Save accumulated companies and invoices data to disk.
+    This ensures data persists across server restarts.
+    """
+    global COMPANIES, INVOICES, ACCUMULATED_DATA_PATH
+    
+    logger.info("Saving accumulated data...")
+    
+    # Ensure directory exists
+    ACCUMULATED_DATA_PATH.mkdir(parents=True, exist_ok=True)
+    
+    # Save accumulated companies
+    if COMPANIES is not None and len(COMPANIES) > 0:
+        companies_path = ACCUMULATED_DATA_PATH / "companies_accumulated.csv"
+        COMPANIES.to_csv(companies_path, index=False)
+        logger.info(f"✓ Saved {len(COMPANIES)} companies to {companies_path}")
+    
+    # Save accumulated invoices
+    if INVOICES is not None and len(INVOICES) > 0:
+        invoices_path = ACCUMULATED_DATA_PATH / "invoices_accumulated.csv"
+        INVOICES.to_csv(invoices_path, index=False)
+        logger.info(f"✓ Saved {len(INVOICES)} invoices to {invoices_path}")
+    
+    # Save upload history
+    history_path = ACCUMULATED_DATA_PATH / "upload_history.json"
+    with open(history_path, "w") as f:
+        json.dump(UPLOAD_HISTORY, f, indent=2)
+    logger.info(f"✓ Saved upload history ({len(UPLOAD_HISTORY)} records)")
+
+
+# Keep original update_graph for backward compatibility but mark as deprecated
+def update_graph_deprecated(new_companies_df, new_invoices_df):
+    """
+    DEPRECATED: Use rebuild_full_graph instead.
+    This function is kept for backward compatibility.
+    """
+    return rebuild_full_graph(new_companies_df, new_invoices_df if not new_invoices_df.empty else pd.DataFrame())
 
 
 def identify_affected_nodes(new_companies_df, new_invoices_df, k_hop=2):
@@ -692,24 +1330,85 @@ def incremental_retrain(subgraph_data, epochs=50, lr=0.001):
 
 def update_global_embeddings():
     """
-    Update global fraud probabilities for all nodes after incremental training
+    Update global fraud probabilities for ALL nodes after training.
+    This ensures all companies (old and new) get updated fraud scores.
     """
-    global MODEL, GRAPH_DATA, DEVICE, FRAUD_PROBA, COMPANIES
+    global MODEL, GRAPH_DATA, DEVICE, FRAUD_PROBA, COMPANIES, MAPPINGS
     
-    logger.info("Updating global embeddings and fraud probabilities...")
+    logger.info("Updating fraud probabilities for ALL companies...")
     
     # Get updated predictions for all nodes
     MODEL.eval()
     with torch.no_grad():
         out = MODEL(GRAPH_DATA.x.to(DEVICE), GRAPH_DATA.edge_index.to(DEVICE))
         predictions = torch.softmax(out, dim=1)
-        FRAUD_PROBA = predictions[:, 1].cpu().numpy()
+        new_fraud_proba = predictions[:, 1].cpu().numpy()
     
-    # Update COMPANIES dataframe
-    COMPANIES["fraud_probability"] = FRAUD_PROBA
-    COMPANIES["predicted_fraud"] = (FRAUD_PROBA > 0.5).astype(int)
+    # Ensure FRAUD_PROBA matches current company count
+    num_companies = len(COMPANIES)
+    num_proba = len(new_fraud_proba)
     
-    logger.info("Global embeddings updated")
+    if num_proba != num_companies:
+        logger.warning(f"Mismatch: {num_companies} companies vs {num_proba} predictions")
+        # Align by padding or truncating
+        if num_proba < num_companies:
+            # Pad with zeros for new companies not in graph yet
+            padded = np.zeros(num_companies)
+            padded[:num_proba] = new_fraud_proba
+            FRAUD_PROBA = padded
+        else:
+            # Truncate to match companies
+            FRAUD_PROBA = new_fraud_proba[:num_companies]
+    else:
+        FRAUD_PROBA = new_fraud_proba
+    
+    # Map predictions back to companies using node mappings
+    if MAPPINGS is not None and "node_list" in MAPPINGS:
+        node_list = MAPPINGS["node_list"]
+        # Create a mapping from company_id to fraud probability
+        fraud_proba_dict = {}
+        for i, node_id in enumerate(node_list):
+            if i < len(new_fraud_proba):
+                fraud_proba_dict[str(node_id)] = float(new_fraud_proba[i])
+        
+        # Update COMPANIES dataframe using the mapping
+        COMPANIES["company_id"] = COMPANIES["company_id"].astype(str).str.strip()
+        COMPANIES["fraud_probability"] = COMPANIES["company_id"].map(fraud_proba_dict).fillna(0.0)
+    else:
+        # Fallback: direct assignment (assumes same order)
+        COMPANIES["fraud_probability"] = FRAUD_PROBA
+    
+    # Use actual is_fraud labels if available, otherwise use model predictions
+    if "is_fraud" in COMPANIES.columns:
+        COMPANIES["predicted_fraud"] = COMPANIES["is_fraud"].astype(int)
+    else:
+        COMPANIES["predicted_fraud"] = (COMPANIES["fraud_probability"] > 0.5).astype(int)
+    
+    # Ensure location column exists for dashboard
+    if "location" not in COMPANIES.columns:
+        if "city" in COMPANIES.columns:
+            COMPANIES["location"] = COMPANIES["city"]
+        elif "state" in COMPANIES.columns:
+            COMPANIES["location"] = COMPANIES["state"]
+        else:
+            COMPANIES["location"] = "Unknown"
+    # Fill missing/blank locations to keep dashboard endpoints stable and avoid nulls in Plotly
+    def _clean_location(val):
+        if pd.isna(val):
+            return "Unknown"
+        s = str(val).strip()
+        if s.lower() in {"", "nan", "none"}:
+            return "Unknown"
+        return s
+    COMPANIES["location"] = COMPANIES["location"].apply(_clean_location)
+
+    # Persist cleaned locations so subsequent loads don't reintroduce NaNs
+    save_accumulated_data()
+    
+    high_risk = (COMPANIES["fraud_probability"] > 0.7).sum()
+    fraud_count = (COMPANIES["predicted_fraud"] == 1).sum()
+    
+    logger.info(f"Updated {len(COMPANIES)} companies: {high_risk} high-risk, {fraud_count} predicted fraud")
 
 
 def save_updated_graph_and_model():
@@ -775,6 +1474,98 @@ def uploads_list():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/accumulation_status')
+def accumulation_status():
+    """
+    API: Get current accumulation status - shows how data has been accumulated over uploads.
+    This is the key endpoint that shows the dashboard's accumulated state.
+    """
+    try:
+        status = {
+            "total_uploads": TOTAL_UPLOADS,
+            "total_companies": len(COMPANIES) if COMPANIES is not None else 0,
+            "total_invoices": len(INVOICES) if INVOICES is not None else 0,
+            "graph_nodes": NETWORKX_GRAPH.number_of_nodes() if NETWORKX_GRAPH else 0,
+            "graph_edges": NETWORKX_GRAPH.number_of_edges() if NETWORKX_GRAPH else 0,
+            "last_retrain": LAST_RETRAIN_TIME,
+            "upload_history": UPLOAD_HISTORY[-10:],  # Last 10 uploads
+            "high_risk_count": int((FRAUD_PROBA > 0.7).sum()) if FRAUD_PROBA is not None else 0,
+            "fraud_count": int((COMPANIES["predicted_fraud"] == 1).sum()) if COMPANIES is not None and "predicted_fraud" in COMPANIES.columns else 0,
+            "accumulated_data_path": str(ACCUMULATED_DATA_PATH),
+            "has_accumulated_companies": (ACCUMULATED_DATA_PATH / "companies_accumulated.csv").exists(),
+            "has_accumulated_invoices": (ACCUMULATED_DATA_PATH / "invoices_accumulated.csv").exists()
+        }
+        return jsonify(status)
+    except Exception as e:
+        logger.error(f"Error getting accumulation status: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/reset_accumulation', methods=['POST'])
+def reset_accumulation():
+    """
+    API: Reset accumulated data to start fresh.
+    Use with caution - this clears all accumulated state!
+    """
+    global COMPANIES, INVOICES, NETWORKX_GRAPH, GRAPH_DATA, MAPPINGS, FRAUD_PROBA
+    global UPLOAD_HISTORY, TOTAL_UPLOADS, LAST_RETRAIN_TIME
+    
+    try:
+        # Clear accumulated files
+        import shutil
+        if ACCUMULATED_DATA_PATH.exists():
+            shutil.rmtree(ACCUMULATED_DATA_PATH)
+            ACCUMULATED_DATA_PATH.mkdir(parents=True, exist_ok=True)
+        
+        # Reset global state
+        UPLOAD_HISTORY = []
+        TOTAL_UPLOADS = 0
+        LAST_RETRAIN_TIME = None
+        
+        # Reload original data
+        load_model_and_data()
+        
+        logger.info("Accumulation reset successfully")
+        return jsonify({
+            "status": "success",
+            "message": "Accumulated data cleared. System reset to initial state.",
+            "companies_count": len(COMPANIES) if COMPANIES is not None else 0
+        })
+    except Exception as e:
+        logger.error(f"Error resetting accumulation: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/high_risk_companies')
+def get_high_risk_companies():
+    """
+    API: Get all high-risk companies from accumulated data.
+    Returns companies with fraud_probability > 0.7
+    """
+    try:
+        if COMPANIES is None or len(COMPANIES) == 0:
+            return jsonify([])
+        
+        high_risk = COMPANIES[COMPANIES["fraud_probability"] > 0.7].copy()
+        high_risk = high_risk.sort_values("fraud_probability", ascending=False)
+        
+        result = []
+        for _, row in high_risk.iterrows():
+            result.append({
+                "company_id": str(row["company_id"]),
+                "fraud_probability": float(row["fraud_probability"]),
+                "risk_level": "CRITICAL" if row["fraud_probability"] > 0.9 else "HIGH",
+                "turnover": float(row.get("turnover", 0)),
+                "location": str(row.get("location", "Unknown")),
+                "is_fraud_labeled": int(row.get("is_fraud", 0))
+            })
+        
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"Error getting high-risk companies: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
 # ============================================================================
 # ROUTES - Pages
 # ============================================================================
@@ -808,10 +1599,19 @@ def dashboard():
     if react_build_path.exists():
         return send_from_directory(str(react_build_path.parent), "index.html")
     # Fallback to template
+    if FRAUD_PROBA is None or COMPANIES is None or len(FRAUD_PROBA) == 0:
+        logger.error(f"Dashboard: FRAUD_PROBA is {FRAUD_PROBA}, COMPANIES len={len(COMPANIES) if COMPANIES is not None else 0}")
+        return render_template("index.html",
+                             total_companies=0,
+                             high_risk_count=0,
+                             fraud_count=0,
+                             avg_risk="0%")
+    
     high_risk_count = (FRAUD_PROBA > 0.5).sum()
     avg_risk = FRAUD_PROBA.mean()
     fraud_count = (COMPANIES["predicted_fraud"] == 1).sum()
     
+    logger.info(f"Dashboard: {len(COMPANIES)} companies, {int(high_risk_count)} high-risk, {int(fraud_count)} fraud, avg_risk={avg_risk:.2%}")
     return render_template("index.html",
                          total_companies=len(COMPANIES),
                          high_risk_count=int(high_risk_count),
@@ -826,15 +1626,6 @@ def companies():
     if react_build_path.exists():
         return send_from_directory(str(react_build_path.parent), "index.html")
     return render_template("companies.html")
-
-
-@app.route("/analytics")
-def analytics():
-    """Analytics route - serves React or template"""
-    react_build_path = Path(__file__).parent / "static" / "react" / "index.html"
-    if react_build_path.exists():
-        return send_from_directory(str(react_build_path.parent), "index.html")
-    return render_template("analytics.html")
 
 
 @app.route('/chatbot')
@@ -1029,8 +1820,11 @@ def chart_risk_distribution():
 def chart_risk_by_location():
     """API: Risk by location chart - returns Plotly JSON"""
     try:
+        df = COMPANIES.copy()
+        df["location"] = df["location"].fillna("Unknown")
+
         fig = px.box(
-            COMPANIES,
+            df,
             x="location",
             y="fraud_probability",
             title="Fraud Probability Distribution by Location",
@@ -1051,8 +1845,11 @@ def chart_risk_by_location():
 def chart_turnover_vs_risk():
     """API: Turnover vs Risk scatter plot - returns Plotly JSON"""
     try:
+        df = COMPANIES.copy()
+        df["location"] = df["location"].fillna("Unknown")
+
         fig = px.scatter(
-            COMPANIES,
+            df,
             x="turnover",
             y="fraud_probability",
             color="predicted_fraud",
@@ -1353,8 +2150,10 @@ def chatbot_api():
         # Import Groq client
         from groq import Groq
         
-        # Initialize Groq client with the provided API key
-        GROQ_API_KEY = "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"
+        # Initialize Groq client - use environment variable for API key
+        GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
+        if not GROQ_API_KEY:
+            return jsonify({'error': 'GROQ_API_KEY environment variable not set'}), 500
         client = Groq(api_key=GROQ_API_KEY)
         
         # Get data statistics for context
@@ -1442,5 +2241,5 @@ if __name__ == "__main__":
     load_model_and_data()
     
     logger.info("Starting Flask application...")
-    app.run(debug=True, host="0.0.0.0", port=5000)
-
+    # Set debug=False to avoid auto-restart issues during testing
+    app.run(debug=False, host="0.0.0.0", port=5000)
