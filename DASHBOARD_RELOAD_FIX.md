@@ -32,6 +32,22 @@ Added a model reload endpoint that allows the backend to refresh all data and mo
 
 ## Usage
 
+### Configuration
+
+The training script supports configuring the backend URL via environment variable:
+
+```bash
+# Default (localhost)
+python train_from_uploads.py
+
+# Custom backend URL
+export BACKEND_URL=http://192.168.1.100:8000
+python train_from_uploads.py
+
+# Or inline
+BACKEND_URL=http://production-server:8000 python train_from_uploads.py
+```
+
 ### Automatic (Recommended)
 
 After incremental learning, the training script will automatically reload the backend:

@@ -410,11 +410,13 @@ print("\nModel and data are ready for dashboard!")
 print("\n[Optional] Triggering dashboard reload...")
 try:
     import requests
+    import os
     
-    # Try to reload the backend model
-    backend_url = "http://localhost:8000/api/model/reload"
+    # Get backend URL from environment variable or use default
+    backend_url = os.getenv('BACKEND_URL', 'http://localhost:8000')
+    reload_endpoint = f"{backend_url}/api/model/reload"
     
-    response = requests.post(backend_url, timeout=10)
+    response = requests.post(reload_endpoint, timeout=10)
     
     if response.status_code == 200:
         result = response.json()
@@ -429,11 +431,11 @@ try:
         print("Please manually call POST /api/model/reload or restart the backend server.")
 
 except requests.exceptions.ConnectionError:
-    print("⚠ Backend server not running at http://localhost:8000")
+    print(f"⚠ Backend server not running at {reload_endpoint}")
     print("Start the backend server and call POST /api/model/reload to update dashboard insights.")
 except ImportError:
     print("⚠ 'requests' library not installed")
-    print("Install with: pip install requests")
+    print("Please install it: pip install requests")
     print("Or manually call POST /api/model/reload after starting the backend.")
 except Exception as e:
     print(f"⚠ Could not trigger automatic reload: {e}")

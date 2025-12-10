@@ -151,8 +151,7 @@ def load_model_and_data():
     try:
         # Detect device (only set if not already set)
         if DEVICE is None:
-            global_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-            DEVICE = global_device
+            DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
             logger.info(f"✓ Using device: {DEVICE}")
         
         # Load data files
