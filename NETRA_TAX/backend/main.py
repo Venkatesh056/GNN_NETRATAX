@@ -142,17 +142,17 @@ USERS = {
 # LOAD MODEL AND DATA ON STARTUP
 # ============================================================================
 
-@app.on_event("startup")
-async def startup_event():
-    """Load model and data on application startup"""
+def load_model_and_data():
+    """Load/reload model and data - can be called during startup or after incremental learning"""
     global MODEL, GRAPH_DATA, DEVICE, COMPANIES_DF, INVOICES_DF, NODE_MAPPINGS, FRAUD_SCORES
     
-    logger.info("🚀 Starting NETRA TAX Application...")
+    logger.info("📥 Loading/reloading model and data...")
     
     try:
-        # Detect device
-        DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        logger.info(f"✓ Using device: {DEVICE}")
+        # Detect device (only set if not already set)
+        if DEVICE is None:
+            DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            logger.info(f"✓ Using device: {DEVICE}")
         
         # Load data files
         data_dir = Path(__file__).parent.parent.parent / "tax-fraud-gnn" / "data" / "processed"
@@ -210,11 +210,38 @@ async def startup_event():
         logger.info("Computing fraud scores...")
         FRAUD_SCORES = compute_fraud_scores()
         
-        logger.info("✅ Application startup complete!")
+        logger.info("✅ Model and data loaded successfully!")
+        
+        return {
+            "success": True,
+            "companies_count": len(COMPANIES_DF) if COMPANIES_DF is not None else 0,
+            "invoices_count": len(INVOICES_DF) if INVOICES_DF is not None else 0,
+            "graph_nodes": GRAPH_DATA.x.shape[0] if GRAPH_DATA is not None else 0,
+            "graph_edges": GRAPH_DATA.edge_index.shape[1] if GRAPH_DATA is not None else 0,
+            "model_loaded": MODEL is not None,
+            "fraud_scores_count": len(FRAUD_SCORES) if FRAUD_SCORES else 0
+        }
         
     except Exception as e:
-        logger.error(f"❌ Startup failed: {e}", exc_info=True)
-        raise
+        logger.error(f"❌ Loading failed: {e}", exc_info=True)
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Load model and data on application startup"""
+    logger.info("🚀 Starting NETRA TAX Application...")
+    
+    result = load_model_and_data()
+    
+    if not result.get("success"):
+        logger.error(f"❌ Startup failed: {result.get('error')}")
+        raise Exception(f"Startup failed: {result.get('error')}")
+    
+    logger.info("✅ Application startup complete!")
 
 # ============================================================================
 # HELPER FUNCTIONS
@@ -687,6 +714,52 @@ async def upload_file(file: UploadFile = File(...)):
 async def list_uploads():
     """List upload history"""
     return {"uploads": UPLOAD_HISTORY[-20:]}  # Last 20 uploads
+
+@app.post("/api/model/reload")
+async def reload_model():
+    """
+    Reload model and data after incremental learning
+    
+    This endpoint should be called after:
+    - New data has been uploaded
+    - Model has been retrained
+    - Graph has been rebuilt
+    
+    Returns updated statistics about loaded data
+    """
+    try:
+        logger.info("📥 Reloading model and data triggered via API...")
+        
+        result = load_model_and_data()
+        
+        if result.get("success"):
+            logger.info("✅ Model and data reloaded successfully!")
+            return {
+                "status": "success",
+                "message": "Model and data reloaded successfully",
+                "timestamp": datetime.now().isoformat(),
+                "statistics": {
+                    "companies": result.get("companies_count", 0),
+                    "invoices": result.get("invoices_count", 0),
+                    "graph_nodes": result.get("graph_nodes", 0),
+                    "graph_edges": result.get("graph_edges", 0),
+                    "model_loaded": result.get("model_loaded", False),
+                    "fraud_scores_computed": result.get("fraud_scores_count", 0)
+                }
+            }
+        else:
+            logger.error(f"❌ Model reload failed: {result.get('error')}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to reload model: {result.get('error')}"
+            )
+    
+    except Exception as e:
+        logger.error(f"Error reloading model: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error reloading model: {str(e)}"
+        )
 
 @app.post("/api/reports/generate")
 async def generate_report(gstin: str, template: str = "comprehensive"):
