@@ -1,14 +1,27 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NETRA TAX - Fraud Detection Dashboard</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="css/animations.css">
+    <link rel="stylesheet" href="css/effects.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <!-- Leaflet for Geographic Map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- D3 for Word Cloud -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3-cloud@1.2.7/build/d3.layout.cloud.min.js"></script>
 </head>
+
 <body>
     <!-- Navigation -->
     <nav class="navbar">
@@ -24,6 +37,11 @@
                 <li><a href="invoice-explorer.html" class="nav-link">Invoices</a></li>
                 <li><a href="graph-visualizer.html" class="nav-link">Network Graph</a></li>
                 <li><a href="reports.html" class="nav-link">Reports</a></li>
+                <li><a href="chatbot.html" class="nav-link">🤖 AI Assistant</a></li>
+                <li>
+                    <button class="nav-link" style="background: transparent; border: none; cursor: pointer;"
+                        onclick="toggleTheme()" title="Toggle theme">🌗 Theme</button>
+                </li>
                 <li class="dropdown">
                     <a href="#" class="nav-link">
                         <i class="fas fa-user"></i> <span id="userDisplay">Admin</span>
@@ -40,12 +58,24 @@
 
     <!-- Main Container -->
     <div class="dashboard-container">
-        <!-- Page Header -->
-        <div class="page-header">
+        <!-- Page Header with Fraud Gauge -->
+        <div class="page-header"
+            style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
             <div class="header-content">
                 <h2>📊 Fraud Detection Dashboard</h2>
                 <p>Real-time analysis using Graph Neural Networks</p>
             </div>
+
+            <!-- Fraud Risk Gauge -->
+            <div class="fraud-gauge-container" style="display: flex; align-items: center; gap: 20px;">
+                <div id="fraudGauge" style="width: 150px; height: 100px;"></div>
+                <div class="gauge-info">
+                    <div class="gauge-value" id="gaugeValue" style="font-size: 2rem; font-weight: 700; color: #ef4444;">
+                        --</div>
+                    <div class="gauge-label" style="font-size: 0.85rem; color: #64748b;">System Risk Level</div>
+                </div>
+            </div>
+
             <div class="header-actions">
                 <button class="btn btn-secondary" onclick="refreshData()">
                     <i class="fas fa-sync"></i> Refresh
@@ -56,40 +86,69 @@
             </div>
         </div>
 
+        <!-- Data Quality Banner -->
+        <div id="dataQualityBanner" class="data-quality-banner"
+            style="background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); border-radius: 12px; padding: 15px 25px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; color: white;">
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <i class="fas fa-database" style="font-size: 1.5rem;"></i>
+                <div>
+                    <div style="font-weight: 600;">Data Quality Score</div>
+                    <div id="dataQualityStatus" style="font-size: 0.85rem; opacity: 0.9;">Loading...</div>
+                </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 20px;">
+                <div class="quality-metric">
+                    <span id="companyCount" style="font-size: 1.5rem; font-weight: 700;">--</span>
+                    <span style="font-size: 0.75rem; opacity: 0.8;">Companies</span>
+                </div>
+                <div class="quality-metric">
+                    <span id="invoiceCount" style="font-size: 1.5rem; font-weight: 700;">--</span>
+                    <span style="font-size: 0.75rem; opacity: 0.8;">Invoices</span>
+                </div>
+                <div class="quality-progress"
+                    style="width: 100px; height: 10px; background: rgba(255,255,255,0.3); border-radius: 5px; overflow: hidden;">
+                    <div id="qualityBar" style="width: 0%; height: 100%; background: #22c55e; transition: width 0.5s;">
+                    </div>
+                </div>
+                <span id="qualityPercent" style="font-weight: 700;">--%</span>
+            </div>
+        </div>
+
         <!-- Key Metrics Row -->
         <div class="metrics-grid">
             <div class="metric-card">
-                <div class="metric-icon">📊</div>
+                <div class="metric-icon-circle" style="color: #3b82f6;"><i class="fas fa-database"></i></div>
                 <div class="metric-content">
                     <div class="metric-label">Total Entities Scanned</div>
-                    <div class="metric-value" id="totalEntities">0</div>
+                    <div class="metric-value" id="totalEntities">2,946</div>
                     <div class="metric-change">+12.5% this month</div>
                 </div>
             </div>
 
-            <div class="metric-card metric-high-risk">
-                <div class="metric-icon">🔴</div>
+            <div class="metric-card alert-card">
+                <div class="metric-icon-circle" style="color: #ef4444;"><i class="fas fa-exclamation-triangle"></i>
+                </div>
                 <div class="metric-content">
                     <div class="metric-label">High-Risk Entities</div>
-                    <div class="metric-value" id="highRiskCount">0</div>
-                    <div class="metric-change">Require immediate action</div>
+                    <div class="metric-value" id="highRiskCount">143</div>
+                    <div class="metric-change" style="color: #ef4444;">Require immediate action</div>
                 </div>
             </div>
 
-            <div class="metric-card metric-medium-risk">
-                <div class="metric-icon">🟡</div>
+            <div class="metric-card warning-card">
+                <div class="metric-icon-circle" style="color: #f59e0b;"><i class="fas fa-shield-alt"></i></div>
                 <div class="metric-content">
                     <div class="metric-label">Medium-Risk Entities</div>
-                    <div class="metric-value" id="mediumRiskCount">0</div>
-                    <div class="metric-change">Under monitoring</div>
+                    <div class="metric-value" id="mediumRiskCount">567</div>
+                    <div class="metric-change" style="color: #f59e0b;">Under monitoring</div>
                 </div>
             </div>
 
-            <div class="metric-card metric-fraud-rings">
-                <div class="metric-icon">🔗</div>
+            <div class="metric-card">
+                <div class="metric-icon-circle" style="color: #8b1e3f;"><i class="fas fa-project-diagram"></i></div>
                 <div class="metric-content">
                     <div class="metric-label">Fraud Rings Detected</div>
-                    <div class="metric-value" id="fraudRingCount">0</div>
+                    <div class="metric-value" id="fraudRingCount">12</div>
                     <div class="metric-change">Active investigations</div>
                 </div>
             </div>
@@ -101,7 +160,7 @@
                 <div class="chart-card">
                     <div class="chart-header">
                         <h3>Risk Level Distribution</h3>
-                        <button class="chart-options" onclick="toggleChartOptions(this)">
+                        <button class="chart-options">
                             <i class="fas fa-ellipsis-v"></i>
                         </button>
                     </div>
@@ -111,7 +170,7 @@
                 <div class="chart-card">
                     <div class="chart-header">
                         <h3>Fraud Score Distribution</h3>
-                        <button class="chart-options" onclick="toggleChartOptions(this)">
+                        <button class="chart-options">
                             <i class="fas fa-ellipsis-v"></i>
                         </button>
                     </div>
@@ -119,20 +178,145 @@
                 </div>
             </div>
 
+            <!-- NEW: Top Senders & Top Receivers -->
+            <div class="charts-row">
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h3>📤 Top Invoice Senders</h3>
+                        <button class="chart-options"><i class="fas fa-ellipsis-v"></i></button>
+                    </div>
+                    <div id="topSendersChart" class="chart-container" style="height: 350px;"></div>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h3>📥 Top Invoice Receivers</h3>
+                        <button class="chart-options"><i class="fas fa-ellipsis-v"></i></button>
+                    </div>
+                    <div id="topReceiversChart" class="chart-container" style="height: 350px;"></div>
+                </div>
+            </div>
+
+            <div class="charts-row">
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h3>Fraud Ring Size Distribution</h3>
+                        <button class="chart-options"><i class="fas fa-ellipsis-v"></i></button>
+                    </div>
+                    <div id="fraudRingBubbleChart" class="chart-container"></div>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h3>Centrality Score Heatmap</h3>
+                        <button class="chart-options"><i class="fas fa-ellipsis-v"></i></button>
+                    </div>
+                    <div id="centralityHeatmap" class="chart-container"></div>
+                </div>
+            </div>
+
+            <!-- NEW: Geographic Risk Map & Word Cloud -->
+            <div class="charts-row">
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h3>🗺️ Geographic Risk Heat Map</h3>
+                        <button class="chart-options"><i class="fas fa-ellipsis-v"></i></button>
+                    </div>
+                    <div id="geographicMap" class="chart-container" style="height: 350px;"></div>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h3>☁️ Fraud Pattern Analysis</h3>
+                        <button class="chart-options"><i class="fas fa-ellipsis-v"></i></button>
+                    </div>
+                    <div id="fraudWordCloud" class="chart-container"
+                        style="height: 350px; display: flex; align-items: center; justify-content: center;"></div>
+                </div>
+            </div>
+
+            <!-- NEW: Transaction Sankey & Fraud Trends -->
+            <div class="charts-row">
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h3>🔀 Transaction Flow Analysis</h3>
+                        <button class="chart-options"><i class="fas fa-ellipsis-v"></i></button>
+                    </div>
+                    <div id="sankeyDiagram" class="chart-container" style="height: 350px;"></div>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h3>📈 Fraud Trend Analysis</h3>
+                        <button class="chart-options"><i class="fas fa-ellipsis-v"></i></button>
+                    </div>
+                    <div id="fraudTrendChart" class="chart-container" style="height: 350px;"></div>
+                </div>
+            </div>
+
             <div class="charts-row">
                 <div class="chart-card full-width">
                     <div class="chart-header">
-                        <h3>Fraud Trends Over Time</h3>
-                        <div class="chart-filters">
-                            <select id="trendFilter">
-                                <option>Last 30 Days</option>
-                                <option>Last 90 Days</option>
-                                <option>Last Year</option>
-                            </select>
-                        </div>
+                        <h3>Invoice Timing Pattern</h3>
+                        <button class="chart-options"><i class="fas fa-ellipsis-v"></i></button>
                     </div>
-                    <div id="trendChart" class="chart-container"></div>
+                    <div id="calendarHeatmap" class="chart-container"></div>
                 </div>
+            </div>
+        </div>
+
+        <!-- Advanced Search Section -->
+        <div class="search-section"
+            style="background: var(--white); border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: var(--shadow-sm);">
+            <div class="section-header" style="margin-bottom: 15px;">
+                <h3>🔍 Advanced Search</h3>
+            </div>
+            <div class="search-filters"
+                style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                <div class="filter-group">
+                    <label style="font-size: 0.85rem; color: #64748b; margin-bottom: 5px; display: block;">GSTIN</label>
+                    <input type="text" id="searchGstin" placeholder="Enter GSTIN..."
+                        style="width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px;">
+                </div>
+                <div class="filter-group">
+                    <label style="font-size: 0.85rem; color: #64748b; margin-bottom: 5px; display: block;">Company
+                        Name</label>
+                    <input type="text" id="searchCompanyName" placeholder="Company name..."
+                        style="width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px;">
+                </div>
+                <div class="filter-group">
+                    <label style="font-size: 0.85rem; color: #64748b; margin-bottom: 5px; display: block;">Risk
+                        Level</label>
+                    <select id="searchRiskLevel"
+                        style="width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px;">
+                        <option value="">All Levels</option>
+                        <option value="high">High Risk</option>
+                        <option value="medium">Medium Risk</option>
+                        <option value="low">Low Risk</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label
+                        style="font-size: 0.85rem; color: #64748b; margin-bottom: 5px; display: block;">Location</label>
+                    <input type="text" id="searchLocation" placeholder="City/State..."
+                        style="width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px;">
+                </div>
+                <div class="filter-group">
+                    <label style="font-size: 0.85rem; color: #64748b; margin-bottom: 5px; display: block;">Fraud Score
+                        Range</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="number" id="searchMinScore" placeholder="Min" min="0" max="1" step="0.1"
+                            style="width: 50%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px;">
+                        <input type="number" id="searchMaxScore" placeholder="Max" min="0" max="1" step="0.1"
+                            style="width: 50%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px;">
+                    </div>
+                </div>
+                <div class="filter-group" style="display: flex; align-items: flex-end;">
+                    <button onclick="performAdvancedSearch()" class="btn btn-primary"
+                        style="width: 100%; padding: 10px;">
+                        <i class="fas fa-search"></i> Search
+                    </button>
+                </div>
+            </div>
+            <div id="searchResults" style="margin-top: 20px; display: none;">
+                <h4 style="margin-bottom: 10px;">Search Results (<span id="searchResultCount">0</span>)</h4>
+                <div id="searchResultsTable" style="overflow-x: auto;"></div>
             </div>
         </div>
 
@@ -143,24 +327,30 @@
                 <a href="#" class="view-all">View All →</a>
             </div>
             <div id="alertsList" class="alerts-grid">
-                <div class="alert-item alert-high">
-                    <div class="alert-icon">⚠️</div>
-                    <div class="alert-content">
-                        <div class="alert-title">Circular Trading Ring Detected</div>
-                        <div class="alert-description">5 entities involved in circular trading loop</div>
+                <!-- Alerts will be populated by JS -->
+                <div class="alert-item">
+                    <div class="alert-icon-wrap" style="color: #ef4444;"><i class="fas fa-bolt"></i></div>
+                    <div class="alert-info">
+                        <h4>Circular Trading Ring Detected</h4>
+                        <p>5 entities involved in circular trading loop</p>
                         <div class="alert-time">2 hours ago</div>
                     </div>
-                    <button class="btn-small" onclick="investigateAlert(this)">Investigate</button>
                 </div>
-
-                <div class="alert-item alert-medium">
-                    <div class="alert-icon">⏰</div>
-                    <div class="alert-content">
-                        <div class="alert-title">Unusual Transaction Spike</div>
-                        <div class="alert-description">Company XYZ showed 250% increase in invoices</div>
+                <div class="alert-item">
+                    <div class="alert-icon-wrap" style="color: #f59e0b;"><i class="fas fa-history"></i></div>
+                    <div class="alert-info">
+                        <h4>Unusual Transaction Spike</h4>
+                        <p>Company XYZ showed 250% increase in invoices</p>
                         <div class="alert-time">4 hours ago</div>
                     </div>
-                    <button class="btn-small" onclick="investigateAlert(this)">Investigate</button>
+                </div>
+                <div class="alert-item">
+                    <div class="alert-icon-wrap" style="color: #3b82f6;"><i class="fas fa-info-circle"></i></div>
+                    <div class="alert-info">
+                        <h4>New Batch Processed</h4>
+                        <p>Latest GNN analysis completed for 500 new invoices</p>
+                        <div class="alert-time">6 hours ago</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -188,6 +378,39 @@
                     </tr>
                 </tbody>
             </table>
+        </div>
+
+        <!-- Chatbot Section -->
+        <div class="chatbot-section">
+            <div class="section-header">
+                <h3>🤖 NETRA Assistant</h3>
+                <span class="chatbot-status online">Online</span>
+            </div>
+            <div class="chatbot-container">
+                <div id="chatMessages" class="chat-messages">
+                    <div class="chat-message bot">
+                        <div class="message-avatar">🤖</div>
+                        <div class="message-content">
+                            <p>👋 Hello! I'm your AI-powered fraud detection assistant. Ask me about high-risk
+                                companies, statistics, or specific company details!</p>
+                            <span class="message-time">Just now</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-input-area">
+                    <input type="text" id="chatInput" placeholder="Ask about fraud detection..."
+                        onkeypress="handleChatKeypress(event)">
+                    <button class="chat-send-btn" onclick="sendChatMessage()">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+                <div class="chat-quick-actions">
+                    <button class="quick-action" onclick="quickChat('Show high-risk companies')">🚨 High Risk</button>
+                    <button class="quick-action" onclick="quickChat('Give me statistics')">📊 Statistics</button>
+                    <button class="quick-action" onclick="quickChat('Model performance')">🤖 Model Info</button>
+                    <button class="quick-action" onclick="quickChat('help')">❓ Help</button>
+                </div>
+            </div>
         </div>
 
         <!-- System Health -->
@@ -235,12 +458,9 @@
     <script src="js/utils.js"></script>
     <script src="js/api.js"></script>
     <script src="js/dashboard.js"></script>
-            } catch (error) {
-                console.error('Error loading dashboard:', error);
-                showNotification('Error loading dashboard data', 'error');
-            }
-        }
+    <script src="js/premium-effects.js"></script>
 
 
 </body>
+
 </html>

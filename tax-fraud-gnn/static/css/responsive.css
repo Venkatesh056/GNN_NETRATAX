@@ -1,0 +1,356 @@
+/* ============================================================================
+   Responsive Breakpoints and Grid System
+   ============================================================================ */
+
+/* ============================================================================
+   Breakpoint Variables
+   ============================================================================ */
+
+:root {
+  --breakpoint-xs: 320px;
+  --breakpoint-sm: 480px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1536px;
+}
+
+/* ============================================================================
+   Container Widths
+   ============================================================================ */
+
+.container {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: var(--spacing-md);
+  padding-right: var(--spacing-md);
+}
+
+@media (min-width: 640px) {
+  .container {
+    max-width: 640px;
+  }
+}
+
+@media (min-width: 768px) {
+  .container {
+    max-width: 768px;
+    padding-left: var(--spacing-lg);
+    padding-right: var(--spacing-lg);
+  }
+}
+
+@media (min-width: 1024px) {
+  .container {
+    max-width: 1024px;
+  }
+}
+
+@media (min-width: 1280px) {
+  .container {
+    max-width: 1280px;
+  }
+}
+
+@media (min-width: 1536px) {
+  .container {
+    max-width: 1400px;
+  }
+}
+
+/* ============================================================================
+   Responsive Grid System
+   ============================================================================ */
+
+.grid {
+  display: grid;
+  gap: var(--spacing-lg);
+}
+
+.grid-cols-1 { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+.grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.grid-cols-6 { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.grid-cols-12 { grid-template-columns: repeat(12, minmax(0, 1fr)); }
+
+/* Responsive grid columns */
+@media (min-width: 640px) {
+  .sm\\:grid-cols-1 { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+  .sm\\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sm\\:grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .sm\\:grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+@media (min-width: 768px) {
+  .md\\:grid-cols-1 { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+  .md\\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .md\\:grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .md\\:grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+@media (min-width: 1024px) {
+  .lg\\:grid-cols-1 { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+  .lg\\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .lg\\:grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .lg\\:grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+/* ============================================================================
+   Responsive Display Utilities
+   ============================================================================ */
+
+.hidden { display: none; }
+.block { display: block; }
+.inline-block { display: inline-block; }
+.flex { display: flex; }
+.inline-flex { display: inline-flex; }
+.grid { display: grid; }
+
+@media (max-width: 639px) {
+  .xs\\:hidden { display: none; }
+  .xs\\:block { display: block; }
+  .xs\\:flex { display: flex; }
+}
+
+@media (min-width: 640px) {
+  .sm\\:hidden { display: none; }
+  .sm\\:block { display: block; }
+  .sm\\:flex { display: flex; }
+}
+
+@media (min-width: 768px) {
+  .md\\:hidden { display: none; }
+  .md\\:block { display: block; }
+  .md\\:flex { display: flex; }
+}
+
+@media (min-width: 1024px) {
+  .lg\\:hidden { display: none; }
+  .lg\\:block { display: block; }
+  .lg\\:flex { display: flex; }
+}
+
+/* ============================================================================
+   Responsive Spacing
+   ============================================================================ */
+
+@media (max-width: 767px) {
+  .metrics-grid,
+  .charts-row,
+  .analytics-stats {
+    gap: var(--spacing-md);
+  }
+  
+  .metric-card,
+  .chart-container,
+  .table-container {
+    padding: var(--spacing-md);
+  }
+}
+
+@media (max-width: 479px) {
+  .metrics-grid,
+  .charts-row {
+    gap: var(--spacing-sm);
+  }
+  
+  .metric-card,
+  .chart-container {
+    padding: var(--spacing-sm);
+  }
+}
+
+/* ============================================================================
+   Responsive Typography
+   ============================================================================ */
+
+@media (max-width: 767px) {
+  .dashboard-header h2,
+  .page-header h2 {
+    font-size: 24px;
+  }
+  
+  .metric-value {
+    font-size: 28px;
+  }
+  
+  .metric-label {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 479px) {
+  .dashboard-header h2,
+  .page-header h2 {
+    font-size: 20px;
+  }
+  
+  .metric-value {
+    font-size: 24px;
+  }
+  
+  h3 {
+    font-size: 16px;
+  }
+}
+
+/* ============================================================================
+   Responsive Touch Targets (Minimum 44x44px)
+   ============================================================================ */
+
+@media (max-width: 767px) {
+  .btn,
+  .nav-link,
+  button,
+  a.clickable {
+    min-height: 44px;
+    min-width: 44px;
+    padding: var(--spacing-sm) var(--spacing-md);
+  }
+  
+  .theme-toggle {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+/* ============================================================================
+   Responsive Tables
+   ============================================================================ */
+
+@media (max-width: 767px) {
+  .table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .companies-table {
+    font-size: 12px;
+  }
+  
+  .companies-table th,
+  .companies-table td {
+    padding: var(--spacing-sm);
+    white-space: nowrap;
+  }
+}
+
+/* ============================================================================
+   Responsive Charts
+   ============================================================================ */
+
+@media (max-width: 1023px) {
+  .charts-row {
+    grid-template-columns: 1fr;
+  }
+  
+  .chart-container {
+    min-height: 350px;
+  }
+}
+
+@media (max-width: 767px) {
+  .chart-container {
+    min-height: 300px;
+  }
+}
+
+@media (max-width: 479px) {
+  .chart-container {
+    min-height: 250px;
+  }
+}
+
+/* ============================================================================
+   Responsive Navigation
+   ============================================================================ */
+
+@media (max-width: 767px) {
+  .navbar-container {
+    flex-direction: column;
+    gap: var(--spacing-md);
+  }
+  
+  .navbar-menu {
+    flex-direction: column;
+    width: 100%;
+    gap: var(--spacing-sm);
+  }
+  
+  .nav-link {
+    width: 100%;
+    text-align: center;
+    justify-content: center;
+  }
+}
+
+/* ============================================================================
+   Responsive Modals
+   ============================================================================ */
+
+@media (max-width: 767px) {
+  .modal-content {
+    width: 95%;
+    margin: 10% auto;
+    padding: var(--spacing-lg);
+  }
+  
+  .modal-detail-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ============================================================================
+   Responsive Metrics Grid
+   ============================================================================ */
+
+@media (max-width: 1199px) {
+  .metrics-grid-single-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 767px) {
+  .metrics-grid,
+  .metrics-grid-single-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ============================================================================
+   Responsive Filters
+   ============================================================================ */
+
+@media (max-width: 767px) {
+  .filters-section {
+    grid-template-columns: 1fr;
+    padding: var(--spacing-md);
+  }
+}
+
+/* ============================================================================
+   Print Styles
+   ============================================================================ */
+
+@media print {
+  .navbar,
+  .theme-toggle,
+  .btn,
+  .filters-section {
+    display: none !important;
+  }
+  
+  .chart-container,
+  .metric-card,
+  .table-container {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  
+  body {
+    background: white !important;
+    color: black !important;
+  }
+}

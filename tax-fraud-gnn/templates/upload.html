@@ -5,9 +5,312 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Upload Data - NETRATAX</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/landing.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/navy-override.css') }}">
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-    <style>
+</head>
+<body data-theme="light">
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="navbar-container">
+            <div class="navbar-brand">
+                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="NETRATAX Logo" class="navbar-logo">
+                <h1>NETRATAX</h1>
+            </div>
+            <ul class="navbar-menu">
+                <li><a href="/landing" class="nav-link">Home</a></li>
+                <li><a href="/dashboard" class="nav-link">Dashboard</a></li>
+                <li><a href="/companies" class="nav-link">Companies</a></li>
+                <li><a href="/advanced-analytics" class="nav-link">Advanced Analytics</a></li>
+                <li><a href="/upload" class="nav-link active">Upload</a></li>
+                <li><a href="/chatbot" class="nav-link">Chatbox</a></li>
+            </ul>
+            <div class="nav-actions">
+                <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+                    <span class="theme-icon-light">☀️</span>
+                    <span class="theme-icon-dark">🌙</span>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="dashboard-header">
+            <h2>📤 Upload Datasets</h2>
+            <p>Upload company data (nodes) and invoice transactions (edges) to train the fraud detection model</p>
+        </div>
+
+        <form id="upload-form" enctype="multipart/form-data">
+            <div class="charts-row">
+                <!-- Companies CSV (Nodes) -->
+                <div class="card">
+                    <div class="upload-icon">📊</div>
+                    <h3>Companies Dataset</h3>
+                    <p>CSV with company nodes (GSTIN, turnover, compliance)</p>
+                    
+                    <div class="drop-zone" id="companies-drop">
+                        <input type="file" id="companies-file" name="companies_file" accept=".csv" />
+                        <div class="drop-zone-icon">📁</div>
+                        <p class="drop-zone-text">Drag & drop or <span>browse</span></p>
+                    </div>
+
+                    <div class="file-info" id="companies-info" style="display: none;">
+                        <div class="file-details">
+                            <div class="file-name" id="companies-name">companies.csv</div>
+                            <div class="file-size" id="companies-size">0 KB</div>
+                        </div>
+                        <button type="button" class="btn btn-danger" onclick="removeFile('companies')">Remove</button>
+                    </div>
+                </div>
+
+                <!-- Invoices CSV (Edges) -->
+                <div class="card">
+                    <div class="upload-icon">📄</div>
+                    <h3>Invoices Dataset</h3>
+                    <p>CSV with invoice transactions (buyer, seller, amounts)</p>
+                    
+                    <div class="drop-zone" id="invoices-drop">
+                        <input type="file" id="invoices-file" name="invoices_file" accept=".csv" />
+                        <div class="drop-zone-icon">📁</div>
+                        <p class="drop-zone-text">Drag & drop or <span>browse</span></p>
+                    </div>
+
+                    <div class="file-info" id="invoices-info" style="display: none;">
+                        <div class="file-details">
+                            <div class="file-name" id="invoices-name">invoices.csv</div>
+                            <div class="file-size" id="invoices-size">0 KB</div>
+                        </div>
+                        <button type="button" class="btn btn-danger" onclick="removeFile('invoices')">Remove</button>
+                    </div>
+                </div>
+            </div>
+
+            <div style="text-align: center; margin: 2rem 0;">
+                <button type="submit" class="btn btn-primary btn-lg" id="upload-btn" disabled>
+                    🚀 Upload & Train Model
+                </button>
+            </div>
+        </form>
+
+        <!-- Status Section -->
+        <div class="card">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem;">
+                <h3>📊 Model Training Status</h3>
+                <span class="badge badge-success" id="status-badge">Ready</span>
+            </div>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="total-nodes">0</div>
+                    <div class="stat-label">Total Companies</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="total-edges">0</div>
+                    <div class="stat-label">Total Transactions</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="datasets-uploaded">0</div>
+                    <div class="stat-label">Datasets Processed</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="response-area"></div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+    <script>
+        // File handling
+        const companiesFile = document.getElementById("companies-file");
+        const invoicesFile = document.getElementById("invoices-file");
+        const uploadBtn = document.getElementById("upload-btn");
+
+        let selectedCompanies = null;
+        let selectedInvoices = null;
+
+        function updateUploadButton() {
+            uploadBtn.disabled = !(selectedCompanies && selectedInvoices);
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes < 1024) return bytes + " B";
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+            return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+        }
+
+        function showFileInfo(type, file) {
+            const info = document.getElementById(`${type}-info`);
+            const name = document.getElementById(`${type}-name`);
+            const size = document.getElementById(`${type}-size`);
+            
+            name.textContent = file.name;
+            size.textContent = formatFileSize(file.size);
+            info.style.display = "flex";
+        }
+
+        function removeFile(type) {
+            const input = document.getElementById(`${type}-file`);
+            const info = document.getElementById(`${type}-info`);
+            
+            input.value = "";
+            info.style.display = "none";
+            
+            if (type === "companies") {
+                selectedCompanies = null;
+            } else {
+                selectedInvoices = null;
+            }
+            
+            updateUploadButton();
+        }
+
+        // File handlers
+        companiesFile.addEventListener("change", function(e) {
+            if (e.target.files.length > 0) {
+                selectedCompanies = e.target.files[0];
+                showFileInfo("companies", selectedCompanies);
+                updateUploadButton();
+            }
+        });
+
+        invoicesFile.addEventListener("change", function(e) {
+            if (e.target.files.length > 0) {
+                selectedInvoices = e.target.files[0];
+                showFileInfo("invoices", selectedInvoices);
+                updateUploadButton();
+            }
+        });
+
+        // Drag and drop
+        ["companies", "invoices"].forEach((type) => {
+            const dropZone = document.getElementById(`${type}-drop`);
+            
+            dropZone.addEventListener("dragover", (e) => {
+                e.preventDefault();
+                dropZone.classList.add("dragover");
+            });
+
+            dropZone.addEventListener("dragleave", () => {
+                dropZone.classList.remove("dragover");
+            });
+
+            dropZone.addEventListener("drop", (e) => {
+                e.preventDefault();
+                dropZone.classList.remove("dragover");
+                
+                const files = e.dataTransfer.files;
+                if (files.length > 0 && files[0].name.endsWith(".csv")) {
+                    const file = files[0];
+                    const input = document.getElementById(`${type}-file`);
+                    const dataTransfer = new DataTransfer();
+                    dataTransfer.items.add(file);
+                    input.files = dataTransfer.files;
+                    
+                    if (type === "companies") {
+                        selectedCompanies = file;
+                    } else {
+                        selectedInvoices = file;
+                    }
+                    
+                    showFileInfo(type, file);
+                    updateUploadButton();
+                }
+            });
+        });
+
+        // Form submission
+        document.getElementById("upload-form").addEventListener("submit", async function(e) {
+            e.preventDefault();
+            
+            if (!selectedCompanies || !selectedInvoices) return;
+
+            const btn = document.getElementById("upload-btn");
+            const badge = document.getElementById("status-badge");
+            const responseArea = document.getElementById("response-area");
+
+            btn.disabled = true;
+            btn.textContent = "⏳ Processing...";
+            badge.className = "badge badge-warning";
+            badge.textContent = "Processing...";
+            responseArea.innerHTML = "";
+
+            const formData = new FormData();
+            formData.append("companies_file", selectedCompanies);
+            formData.append("invoices_file", selectedInvoices);
+
+            try {
+                const response = await fetch("/api/upload_data", {
+                    method: "POST",
+                    body: formData,
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    responseArea.innerHTML = `
+                        <div class="alert alert-success">
+                            <strong>✅ Upload Successful!</strong><br>
+                            ${data.message || "Data processed successfully."}
+                            ${data.new_nodes ? `<br>• New companies: ${data.new_nodes}` : ""}
+                            ${data.new_edges ? `<br>• New transactions: ${data.new_edges}` : ""}
+                        </div>
+                    `;
+
+                    if (data.total_nodes !== undefined) {
+                        document.getElementById("total-nodes").textContent = data.total_nodes;
+                    }
+                    if (data.total_edges !== undefined) {
+                        document.getElementById("total-edges").textContent = data.total_edges;
+                    }
+                    if (data.datasets_uploaded !== undefined) {
+                        document.getElementById("datasets-uploaded").textContent = data.datasets_uploaded;
+                    }
+
+                    badge.className = "badge badge-success";
+                    badge.textContent = "Ready";
+                } else {
+                    responseArea.innerHTML = `
+                        <div class="alert alert-danger">
+                            <strong>❌ Error:</strong> ${data.error || "Upload failed"}
+                        </div>
+                    `;
+                    badge.className = "badge badge-success";
+                    badge.textContent = "Ready";
+                }
+            } catch (error) {
+                responseArea.innerHTML = `
+                    <div class="alert alert-danger">
+                        <strong>❌ Network Error:</strong> ${error.message}
+                    </div>
+                `;
+                badge.className = "badge badge-success";
+                badge.textContent = "Ready";
+            }
+
+            btn.disabled = false;
+            btn.textContent = "🚀 Upload & Train Model";
+        });
+
+        // Load initial stats
+        async function loadStats() {
+            try {
+                const response = await fetch("/api/statistics");
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.total_companies !== undefined) {
+                        document.getElementById("total-nodes").textContent = data.total_companies;
+                    }
+                    if (data.total_edges !== undefined) {
+                        document.getElementById("total-edges").textContent = data.total_edges;
+                    }
+                }
+            } catch (error) {
+                console.log("Could not load initial stats");
+            }
+        }
+
+        loadStats();
+    </script>
+</body>
+</html>
         .upload-container {
             max-width: 900px;
             margin: 0 auto;

@@ -5,15 +5,86 @@ No server-side GDS required — runs locally and writes results back to Neo4j.
 
 from neo4j import GraphDatabase
 import networkx as nx
-from community import community_louvain
+try:
+    import community as community_louvain
+    # Test if best_partition exists
+    _ = community_louvain.best_partition
+except (ImportError, AttributeError):
+    try:
+        from community.community_louvain import best_partition
+        community_louvain = type('cl', (), {'best_partition': best_partition})
+    except ImportError:
+        raise ImportError("The 'python-louvain' package is not installed or is shadowed by another 'community' package. Please uninstall any conflicting 'community' packages and install 'python-louvain'.")
 import os
 import logging
 
+
+import csv
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+def load_data_to_neo4j(companies_path="companies.csv", invoices_path="invoices.csv"):
+    """
+    Load companies and invoices from CSV files into Neo4j if not already present.
+    Uses correct headers from provided CSVs.
+    """
+    logger.info("Checking for existing Company nodes in Neo4j...")
+    with driver.session() as session:
+        result = session.run("MATCH (c:Company) RETURN count(c) AS count")
+        count = result.single()["count"]
+        if count > 0:
+            logger.info(f"{count} Company nodes already exist. Skipping data load.")
+            return
+
+    logger.info("Loading companies from CSV into Neo4j...")
+    with open(companies_path, newline='', encoding='utf-8') as csvfile:
+        reader = csv.DictReader(csvfile)
+        with driver.session() as session:
+            for row in reader:
+                # company_id,registration_date,location,turnover,is_fraud
+                session.run(
+                    """
+                    MERGE (c:Company {gstin: $company_id})
+                    SET c.registration_date = $registration_date,
+                        c.state = $location,
+                        c.turnover = $turnover,
+                        c.is_fraud = $is_fraud
+                    """,
+                    company_id=row.get("company_id"),
+                    registration_date=row.get("registration_date", ""),
+                    location=row.get("location", ""),
+                    turnover=float(row.get("turnover", 0)),
+                    is_fraud=row.get("is_fraud", "0") in ["1", "true", "True", "yes", "Yes"]
+                )
+    logger.info("Companies loaded.")
+
+    logger.info("Loading invoices from CSV into Neo4j...")
+    with open(invoices_path, newline='', encoding='utf-8') as csvfile:
+        reader = csv.DictReader(csvfile)
+        with driver.session() as session:
+            for row in reader:
+                # invoice_id,seller_id,buyer_id,amount,date,itc_claimed
+                session.run(
+                    """
+                    MATCH (s:Company {gstin: $seller_id})
+                    MATCH (b:Company {gstin: $buyer_id})
+                    MERGE (inv:Invoice {invoice_id: $invoice_id})
+                    SET inv.amount = $amount,
+                        inv.date = $date,
+                        inv.itc_claimed = $itc_claimed
+                    MERGE (s)-[:SUPPLIES_TO]->(inv)
+                    MERGE (inv)-[:BILLED_TO]->(b)
+                    """,
+                    invoice_id=row.get("invoice_id"),
+                    seller_id=row.get("seller_id"),
+                    buyer_id=row.get("buyer_id"),
+                    amount=float(row.get("amount", 0)),
+                    date=row.get("date", ""),
+                    itc_claimed=row.get("itc_claimed", "0") in ["1", "true", "True", "yes", "Yes"]
+                )
+    logger.info("Invoices loaded.")
 
 # Connection configuration from environment variables
-NEO4J_URI = os.environ.get("NEO4J_URI", "")
+NEO4J_URI = os.environ.get("NEO4J_URI", "neo4j://127.0.0.1:7687")
 NEO4J_USER = os.environ.get("NEO4J_USER", "neo4j")
 NEO4J_PASSWORD = os.environ.get("NEO4J_PASSWORD", "1234567890")
 
@@ -27,30 +98,28 @@ def export_company_graph():
     Returns: (nodes_dict, edges_list)
     """
     logger.info("Exporting Company nodes and edges from Neo4j...")
-    
+
     nodes = {}
     edges = []
-    
+
     with driver.session() as session:
         # Fetch all companies
         result = session.run(
             """
             MATCH (c:Company)
-            RETURN id(c) AS node_id, c.gstin AS gstin, c.name AS name, 
-                   c.state AS state, c.is_fraud AS is_fraud
+            RETURN id(c) AS node_id, c.gstin AS gstin, c.state AS state, c.is_fraud AS is_fraud
             """
         )
         for record in result:
             node_id = record["node_id"]
             nodes[node_id] = {
                 "gstin": record["gstin"],
-                "name": record["name"],
                 "state": record["state"],
                 "is_fraud": record["is_fraud"]
             }
-        
+
         logger.info(f"Loaded {len(nodes)} Company nodes")
-        
+
         # Fetch Company->Company edges (via invoices)
         result = session.run(
             """
@@ -60,9 +129,9 @@ def export_company_graph():
         )
         for record in result:
             edges.append((record["source"], record["target"]))
-        
+
         logger.info(f"Loaded {len(edges)} edges")
-    
+
     return nodes, edges
 
 
@@ -186,36 +255,40 @@ def report_large_communities(min_size=4):
             print(f"{i}. Community {comm_id}: {size} members, Samples: {samples}")
 
 
+
 def run_all_analytics():
-    """Run complete analytics pipeline: export, analyze, write back, report."""
+    """Run complete analytics pipeline: load data, export, analyze, write back, report."""
     try:
+        # Load data if not present
+        load_data_to_neo4j("companies.csv", "invoices.csv")
+
         # Export data from Neo4j
         nodes, edges = export_company_graph()
-        
+
         if not nodes or not edges:
             logger.warning("No nodes or edges found in Neo4j. Skipping analytics.")
             return
-        
+
         # Build NetworkX graph
         G = build_networkx_graph(nodes, edges)
-        
+
         # Run algorithms
         pagerank = run_pagerank(G)
         community_map = run_louvain(G)
         wcc_map = run_wcc(G)
-        
+
         # Write results back to Neo4j
         write_properties_to_neo4j(nodes, pagerank, community_map, wcc_map)
-        
+
         # Report
         report_top_pagerank(10)
         report_large_communities(4)
-        
+
         logger.info("\n✓ Analytics complete!")
-    
+
     except Exception as e:
         logger.error(f"Error during analytics: {e}", exc_info=True)
-    
+
     finally:
         driver.close()
 

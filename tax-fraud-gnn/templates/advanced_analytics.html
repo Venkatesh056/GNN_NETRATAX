@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NETRATAX - Advanced Analytics</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/navy-override.css') }}">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body data-theme="light">
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="navbar-container">
+            <div class="navbar-brand">
+                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="NETRATAX Logo" class="navbar-logo">
+                <h1>NETRATAX</h1>
+            </div>
+            <ul class="navbar-menu">
+                <li><a href="/landing" class="nav-link">Home</a></li>
+                <li><a href="/dashboard" class="nav-link">Dashboard</a></li>
+                <li><a href="/companies" class="nav-link">Companies</a></li>
+                <li><a href="/advanced-analytics" class="nav-link active">Advanced Analytics</a></li>
+                <li><a href="/upload" class="nav-link">Upload</a></li>
+                <li><a href="/chatbot" class="nav-link">Chatbox</a></li>
+            </ul>
+            <div class="nav-actions">
+                <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+                    <span class="theme-icon-light">☀️</span>
+                    <span class="theme-icon-dark">🌙</span>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="container">
+        <!-- Page Header -->
+        <div class="dashboard-header">
+            <h2>Advanced Analytics</h2>
+            <p>Deep dive into fraud patterns with network analysis, heatmaps, and timeline visualizations</p>
+        </div>
+
+        <!-- Network Graph Section -->
+        <div class="chart-container full-width" style="margin-bottom: 2rem;">
+            <h3>🔗 Transaction Network Graph</h3>
+            <p style="color: var(--text-secondary); margin-bottom: 1rem;">
+                Interactive network visualization showing relationships between companies. 
+                Node size represents transaction volume, color indicates risk level.
+            </p>
+            <div id="networkGraph" style="height: 600px;"></div>
+        </div>
+
+        <!-- Heatmap Section -->
+        <div class="chart-container full-width" style="margin-bottom: 2rem;">
+            <h3>🔥 Transaction Risk Heatmap</h3>
+            <p style="color: var(--text-secondary); margin-bottom: 1rem;">
+                Heatmap showing risk scores for transactions between different companies.
+            </p>
+            <div id="riskHeatmap" style="height: 500px;"></div>
+        </div>
+
+        <!-- Timeline Section -->
+        <div class="chart-container full-width" style="margin-bottom: 2rem;">
+            <h3>📈 Fraud Detection Timeline</h3>
+            <p style="color: var(--text-secondary); margin-bottom: 1rem;">
+                Historical view of fraud detection events over time.
+            </p>
+            <div id="fraudTimeline" style="height: 400px;"></div>
+        </div>
+
+        <!-- Sankey Diagram Section -->
+        <div class="chart-container full-width" style="margin-bottom: 2rem;">
+            <h3>🌊 Transaction Flow (Sankey Diagram)</h3>
+            <p style="color: var(--text-secondary); margin-bottom: 1rem;">
+                Visualize the flow of transactions between companies.
+            </p>
+            <div id="sankeyDiagram" style="height: 600px;"></div>
+        </div>
+
+        <!-- Radar Chart Section -->
+        <div class="charts-row" style="margin-bottom: 2rem;">
+            <div class="chart-container">
+                <h3>📊 Risk Factor Analysis</h3>
+                <canvas id="radarChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>🎯 Company Risk Profile</h3>
+                <canvas id="polarChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Treemap Section -->
+        <div class="chart-container full-width">
+            <h3>🗺️ Risk Distribution Treemap</h3>
+            <p style="color: var(--text-secondary); margin-bottom: 1rem;">
+                Hierarchical view of companies grouped by risk level and location.
+            </p>
+            <div id="treemap" style="height: 500px;"></div>
+        </div>
+    </main>
+
+    <!-- Scripts -->
+    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/ui-enhancements.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/chartConfig.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/networkGraph.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/heatmap.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/timeline.js') }}"></script>
+    
+    <script>
+        // Initialize visualizations on load
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Advanced Analytics loading...');
+            
+            // Initialize Network Graph
+            initNetworkGraph();
+            
+            // Initialize Heatmap
+            initHeatmap();
+            
+            // Initialize Timeline
+            initTimeline();
+            
+            // Initialize Sankey Diagram
+            initSankeyDiagram();
+            
+            // Initialize Radar Chart
+            initRadarChart();
+            
+            // Initialize Polar Chart
+            initPolarChart();
+            
+            // Initialize Treemap
+            initTreemap();
+        });
+        
+        async function initNetworkGraph() {
+            const networkGraph = new NetworkGraph('networkGraph');
+            networkGraph.init();
+            
+            try {
+                const response = await fetch('/api/network-graph');
+                const graphData = await response.json();
+                networkGraph.loadData(graphData);
+            } catch (error) {
+                console.error('Error loading network graph:', error);
+            }
+        }
+        
+        async function initHeatmap() {
+            const heatmap = new Heatmap('riskHeatmap');
+            heatmap.init();
+            
+            try {
+                const response = await fetch('/api/heatmap-data');
+                const result = await response.json();
+                heatmap.loadData(result.data, result.xLabels, result.yLabels);
+            } catch (error) {
+                console.error('Error loading heatmap:', error);
+            }
+        }
+        
+        async function initTimeline() {
+            const timeline = new Timeline('fraudTimeline');
+            timeline.init();
+            
+            try {
+                const response = await fetch('/api/timeline-data');
+                const data = await response.json();
+                // Convert date strings to Date objects
+                data.forEach(d => d.date = new Date(d.date));
+                timeline.loadData(data);
+            } catch (error) {
+                console.error('Error loading timeline:', error);
+            }
+        }
+        
+        function initSankeyDiagram() {
+            const data = [{
+                type: "sankey",
+                orientation: "h",
+                node: {
+                    pad: 15,
+                    thickness: 30,
+                    line: {
+                        color: "#1B1616",
+                        width: 0.5
+                    },
+                    label: ["Company A", "Company B", "Company C", "Company D", "Company E"],
+                    color: ["#2F4156", "#700034", "#C3A582", "#2F4156", "#700034"]
+                },
+                link: {
+                    source: [0, 1, 0, 2, 3],
+                    target: [2, 3, 3, 4, 4],
+                    value: [8, 4, 2, 8, 4],
+                    color: ["rgba(47, 65, 86, 0.3)", "rgba(112, 0, 52, 0.3)", "rgba(195, 165, 130, 0.3)", 
+                            "rgba(47, 65, 86, 0.3)", "rgba(112, 0, 52, 0.3)"]
+                }
+            }];
+            
+            const layout = {
+                font: {
+                    size: 12,
+                    color: getThemeColors().textColor
+                },
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                plot_bgcolor: 'rgba(0,0,0,0)'
+            };
+            
+            Plotly.newPlot('sankeyDiagram', data, layout, {responsive: true});
+        }
+        
+        function initRadarChart() {
+            const ctx = document.getElementById('radarChart').getContext('2d');
+            
+            new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: ['Circular Trading', 'GST Compliance', 'Late Filing', 'Round Amounts', 'Buyer Concentration', 'Network Risk'],
+                    datasets: [{
+                        label: 'High Risk Companies',
+                        data: [85, 45, 70, 60, 75, 80],
+                        fill: true,
+                        backgroundColor: 'rgba(112, 0, 52, 0.2)',
+                        borderColor: '#700034',
+                        pointBackgroundColor: '#700034',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: '#700034'
+                    }, {
+                        label: 'Low Risk Companies',
+                        data: [20, 85, 25, 30, 35, 25],
+                        fill: true,
+                        backgroundColor: 'rgba(47, 65, 86, 0.2)',
+                        borderColor: '#2F4156',
+                        pointBackgroundColor: '#2F4156',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: '#2F4156'
+                    }]
+                },
+                options: {
+                    ...defaultChartConfig,
+                    scales: {
+                        r: {
+                            angleLines: {
+                                color: getThemeColors().gridColor
+                            },
+                            grid: {
+                                color: getThemeColors().gridColor
+                            },
+                            pointLabels: {
+                                color: getThemeColors().textColor,
+                                font: {
+                                    size: 11
+                                }
+                            },
+                            ticks: {
+                                color: getThemeColors().textColor,
+                                backdropColor: 'transparent'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        function initPolarChart() {
+            const ctx = document.getElementById('polarChart').getContext('2d');
+            
+            new Chart(ctx, {
+                type: 'polarArea',
+                data: {
+                    labels: ['High Risk', 'Medium Risk', 'Low Risk', 'Verified', 'Under Review'],
+                    datasets: [{
+                        data: [30, 45, 120, 85, 25],
+                        backgroundColor: [
+                            'rgba(112, 0, 52, 0.6)',
+                            'rgba(195, 165, 130, 0.6)',
+                            'rgba(47, 65, 86, 0.6)',
+                            'rgba(39, 174, 96, 0.6)',
+                            'rgba(243, 156, 18, 0.6)'
+                        ],
+                        borderColor: [
+                            '#700034',
+                            '#C3A582',
+                            '#2F4156',
+                            '#27ae60',
+                            '#f39c12'
+                        ],
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    ...defaultChartConfig,
+                    scales: {
+                        r: {
+                            ticks: {
+                                color: getThemeColors().textColor,
+                                backdropColor: 'transparent'
+                            },
+                            grid: {
+                                color: getThemeColors().gridColor
+                            },
+                            angleLines: {
+                                color: getThemeColors().gridColor
+                            },
+                            pointLabels: {
+                                color: getThemeColors().textColor
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        function initTreemap() {
+            const data = [{
+                type: "treemap",
+                labels: ["High Risk<br>Mumbai", "High Risk<br>Delhi", "Medium Risk<br>Bangalore", 
+                         "Medium Risk<br>Chennai", "Low Risk<br>Hyderabad", "Low Risk<br>Pune"],
+                parents: ["", "", "", "", "", ""],
+                values: [30, 25, 45, 40, 60, 55],
+                marker: {
+                    colors: ["#700034", "#8f0044", "#C3A582", "#d4b89a", "#2F4156", "#3d5470"],
+                    line: {
+                        color: "#1B1616",
+                        width: 2
+                    }
+                },
+                textfont: {
+                    color: "#F7F2F0",
+                    size: 14
+                }
+            }];
+            
+            const layout = {
+                font: {
+                    color: getThemeColors().textColor
+                },
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                plot_bgcolor: 'rgba(0,0,0,0)'
+            };
+            
+            Plotly.newPlot('treemap', data, layout, {responsive: true});
+        }
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            // Resize Plotly charts
+            ['sankeyDiagram', 'treemap'].forEach(id => {
+                if (document.getElementById(id)) {
+                    Plotly.Plots.resize(id);
+                }
+            });
+        });
+    </script>
+</body>
+</html>

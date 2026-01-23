@@ -1,0 +1,460 @@
+/* ============================================================================
+   Chart Styling - Chart.js, D3.js, Plotly Customization
+   ============================================================================ */
+
+/* ============================================================================
+   Chart Container Base
+   ============================================================================ */
+
+.chart-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 300px;
+}
+
+.chart-canvas {
+  max-width: 100%;
+  height: auto !important;
+}
+
+/* ============================================================================
+   Chart Colors (for JavaScript configuration)
+   ============================================================================ */
+
+:root {
+  --chart-navy: #2F4156;
+  --chart-crimson: #700034;
+  --chart-sand: #C3A582;
+  --chart-pearl: #F7F2F0;
+  --chart-success: #27AE60;
+  --chart-info: #3498DB;
+  --chart-warning: #FF9932;
+  
+  /* Chart gradients */
+  --chart-gradient-navy-start: rgba(47, 65, 86, 0.8);
+  --chart-gradient-navy-end: rgba(47, 65, 86, 0.1);
+  
+  --chart-gradient-crimson-start: rgba(112, 0, 52, 0.8);
+  --chart-gradient-crimson-end: rgba(112, 0, 52, 0.1);
+  
+  --chart-gradient-sand-start: rgba(195, 165, 130, 0.8);
+  --chart-gradient-sand-end: rgba(195, 165, 130, 0.1);
+}
+
+/* ============================================================================
+   Chart Legends
+   ============================================================================ */
+
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-md);
+  justify-content: center;
+  margin-top: var(--spacing-lg);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--border-color);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.legend-color {
+  width: 16px;
+  height: 16px;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+
+/* ============================================================================
+   Chart Tooltips (Custom)
+   ============================================================================ */
+
+.chart-tooltip {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  box-shadow: var(--shadow-lg);
+  font-size: 0.875rem;
+  pointer-events: none;
+  z-index: 1000;
+}
+
+.tooltip-title {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-xs);
+}
+
+.tooltip-value {
+  color: var(--text-secondary);
+}
+
+/* ============================================================================
+   Network Graph Styles (D3.js)
+   ============================================================================ */
+
+.network-graph {
+  width: 100%;
+  height: 500px;
+  position: relative;
+}
+
+.network-node {
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.network-node:hover {
+  filter: brightness(1.2);
+}
+
+.network-node.high-risk {
+  fill: var(--crimson-depth);
+  stroke: var(--crimson-dark);
+  stroke-width: 3px;
+}
+
+.network-node.medium-risk {
+  fill: var(--warm-sand);
+  stroke: var(--warm-sand-dark);
+  stroke-width: 2px;
+}
+
+.network-node.low-risk {
+  fill: var(--success);
+  stroke: var(--success-dark);
+  stroke-width: 2px;
+}
+
+.network-node.normal {
+  fill: var(--navy);
+  stroke: var(--navy-dark);
+  stroke-width: 2px;
+}
+
+.network-link {
+  stroke: var(--warm-sand);
+  stroke-opacity: 0.6;
+  stroke-width: 2px;
+  transition: all var(--transition-fast);
+}
+
+.network-link:hover {
+  stroke-opacity: 1;
+  stroke-width: 3px;
+}
+
+.network-link.high-volume {
+  stroke-width: 4px;
+  stroke: var(--crimson-depth);
+}
+
+.network-label {
+  font-size: 0.75rem;
+  fill: var(--text-primary);
+  pointer-events: none;
+  text-anchor: middle;
+}
+
+/* ============================================================================
+   Heatmap Styles
+   ============================================================================ */
+
+.heatmap-cell {
+  stroke: var(--bg-primary);
+  stroke-width: 2px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.heatmap-cell:hover {
+  stroke: var(--navy);
+  stroke-width: 3px;
+  filter: brightness(1.1);
+}
+
+.heatmap-label {
+  font-size: 0.75rem;
+  fill: var(--text-primary);
+  text-anchor: middle;
+}
+
+/* ============================================================================
+   Timeline Chart
+   ============================================================================ */
+
+.timeline-chart {
+  position: relative;
+  padding: var(--spacing-lg) 0;
+}
+
+.timeline-axis {
+  stroke: var(--border-color);
+  stroke-width: 2px;
+}
+
+.timeline-point {
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.timeline-point:hover {
+  transform: scale(1.2);
+}
+
+.timeline-point.fraud-event {
+  fill: var(--crimson-depth);
+  stroke: var(--crimson-dark);
+  stroke-width: 2px;
+}
+
+.timeline-point.normal-event {
+  fill: var(--navy);
+  stroke: var(--navy-dark);
+  stroke-width: 2px;
+}
+
+/* ============================================================================
+   Sankey Diagram
+   ============================================================================ */
+
+.sankey-node rect {
+  cursor: pointer;
+  fill-opacity: 0.9;
+  transition: all var(--transition-fast);
+}
+
+.sankey-node rect:hover {
+  fill-opacity: 1;
+  filter: brightness(1.1);
+}
+
+.sankey-link {
+  fill: none;
+  stroke-opacity: 0.3;
+  transition: all var(--transition-fast);
+}
+
+.sankey-link:hover {
+  stroke-opacity: 0.6;
+}
+
+.sankey-node text {
+  font-size: 0.875rem;
+  fill: var(--text-primary);
+  pointer-events: none;
+}
+
+/* ============================================================================
+   Treemap
+   ============================================================================ */
+
+.treemap-cell {
+  stroke: var(--bg-primary);
+  stroke-width: 2px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.treemap-cell:hover {
+  stroke: var(--navy);
+  stroke-width: 3px;
+  filter: brightness(1.1);
+}
+
+.treemap-label {
+  font-size: 0.75rem;
+  fill: var(--text-inverse);
+  font-weight: 600;
+  pointer-events: none;
+  text-anchor: middle;
+}
+
+/* ============================================================================
+   Radar Chart
+   ============================================================================ */
+
+.radar-chart {
+  position: relative;
+}
+
+.radar-axis {
+  stroke: var(--border-color);
+  stroke-width: 1px;
+}
+
+.radar-grid {
+  stroke: var(--border-color-light);
+  stroke-width: 1px;
+  fill: none;
+}
+
+.radar-area {
+  fill: var(--navy);
+  fill-opacity: 0.3;
+  stroke: var(--navy);
+  stroke-width: 2px;
+  transition: all var(--transition-fast);
+}
+
+.radar-area:hover {
+  fill-opacity: 0.5;
+}
+
+.radar-point {
+  fill: var(--navy);
+  stroke: var(--bg-card);
+  stroke-width: 2px;
+  cursor: pointer;
+}
+
+.radar-label {
+  font-size: 0.75rem;
+  fill: var(--text-primary);
+  font-weight: 600;
+}
+
+/* ============================================================================
+   Chart Loading State
+   ============================================================================ */
+
+.chart-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  color: var(--text-secondary);
+}
+
+.chart-loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid var(--border-color);
+  border-top-color: var(--navy);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* ============================================================================
+   Chart Empty State
+   ============================================================================ */
+
+.chart-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  color: var(--text-secondary);
+  text-align: center;
+  padding: var(--spacing-2xl);
+}
+
+.chart-empty-icon {
+  font-size: 3rem;
+  margin-bottom: var(--spacing-md);
+  opacity: 0.5;
+}
+
+.chart-empty-text {
+  font-size: 1rem;
+  margin-bottom: var(--spacing-sm);
+}
+
+/* ============================================================================
+   Chart Filters
+   ============================================================================ */
+
+.chart-filters {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+  flex-wrap: wrap;
+}
+
+.chart-filter-select {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.chart-filter-select:hover {
+  border-color: var(--navy);
+}
+
+.chart-filter-select:focus {
+  outline: none;
+  border-color: var(--navy);
+  box-shadow: 0 0 0 3px rgba(47, 65, 86, 0.1);
+}
+
+/* ============================================================================
+   Chart Annotations
+   ============================================================================ */
+
+.chart-annotation {
+  position: absolute;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  pointer-events: none;
+  z-index: 10;
+}
+
+.chart-annotation.warning {
+  border-color: var(--warning);
+  background: rgba(195, 165, 130, 0.1);
+}
+
+.chart-annotation.danger {
+  border-color: var(--danger);
+  background: rgba(112, 0, 52, 0.1);
+}
+
+/* ============================================================================
+   Responsive Charts
+   ============================================================================ */
+
+@media (max-width: 767px) {
+  .network-graph {
+    height: 400px;
+  }
+  
+  .chart-filters {
+    flex-direction: column;
+  }
+  
+  .chart-filter-select {
+    width: 100%;
+  }
+  
+  .chart-legend {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 479px) {
+  .network-graph {
+    height: 300px;
+  }
+  
+  .chart-wrapper {
+    min-height: 250px;
+  }
+}

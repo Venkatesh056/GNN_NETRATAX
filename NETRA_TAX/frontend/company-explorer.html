@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Company Explorer - NETRA TAX</title>
     <link rel="stylesheet" href="/css/style.css">
 </head>
+
 <body>
     <!-- Navigation Bar -->
     <nav class="navbar">
@@ -21,7 +23,11 @@
                 <li><a href="/invoice-explorer.html" class="nav-link">📄 Invoices</a></li>
                 <li><a href="/graph-visualizer.html" class="nav-link">🕸️ Network</a></li>
                 <li><a href="/reports.html" class="nav-link">📑 Reports</a></li>
+                <li><a href="/chatbot.html" class="nav-link">🤖 AI Assistant</a></li>
                 <li><a href="/admin.html" class="nav-link">⚙️ Admin</a></li>
+                <li>
+                    <button class="nav-link" style="background: transparent; border: none; cursor: pointer;" onclick="toggleTheme()" title="Toggle theme">🌗 Theme</button>
+                </li>
                 <li>
                     <div class="dropdown">
                         <a href="#" class="nav-link">👤 <span class="user-name">User</span></a>
@@ -41,46 +47,60 @@
                 <p>Search and analyze company fraud risk profiles</p>
             </div>
             <div class="header-actions">
-                <input type="text" id="searchInput" placeholder="Search by GSTIN or company name..." style="padding: 10px 16px; border: 1px solid #bdc3c7; border-radius: 8px; width: 300px;" />
+                <input type="text" id="searchInput" placeholder="Search by GSTIN or company name..."
+                    style="padding: 10px 16px; border: 1px solid #bdc3c7; border-radius: 8px; width: 300px;" />
                 <button class="btn btn-primary" onclick="performSearch()">🔍 Search</button>
             </div>
         </div>
 
-        <!-- Filter Section -->
-        <div class="table-section" style="margin-bottom: 24px;">
-            <h3 style="margin-bottom: 16px; font-size: 16px; color: var(--primary-color); font-weight: 600;">Filters</h3>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
-                <div>
-                    <label style="font-weight: 600; color: var(--primary-color); margin-bottom: 8px; display: block;">Risk Level</label>
-                    <select id="riskFilter" onchange="performSearch()" style="width: 100%; padding: 10px; border: 1px solid #bdc3c7; border-radius: 8px;">
-                        <option value="">All Levels</option>
-                        <option value="high">High Risk (0.7 - 1.0)</option>
-                        <option value="medium">Medium Risk (0.3 - 0.7)</option>
-                        <option value="low">Low Risk (0.0 - 0.3)</option>
-                    </select>
+        <!-- Metric Row Matching Reference -->
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-icon-circle" style="color: #3b82f6;"><i class="fas fa-building"></i></div>
+                <div class="metric-content">
+                    <div class="metric-label">Total Entities</div>
+                    <div class="metric-value">2,946</div>
                 </div>
-
-                <div>
-                    <label style="font-weight: 600; color: var(--primary-color); margin-bottom: 8px; display: block;">Sort By</label>
-                    <select id="sortFilter" onchange="performSearch()" style="width: 100%; padding: 10px; border: 1px solid #bdc3c7; border-radius: 8px;">
-                        <option value="risk_desc">Risk Score (High to Low)</option>
-                        <option value="risk_asc">Risk Score (Low to High)</option>
-                        <option value="name_asc">Name (A to Z)</option>
-                        <option value="name_desc">Name (Z to A)</option>
-                    </select>
+            </div>
+            <div class="metric-card alert-card">
+                <div class="metric-icon-circle" style="color: #ef4444;"><i class="fas fa-exclamation-circle"></i></div>
+                <div class="metric-content">
+                    <div class="metric-label">High Risk</div>
+                    <div class="metric-value">143</div>
                 </div>
-
-                <div>
-                    <label style="font-weight: 600; color: var(--primary-color); margin-bottom: 8px; display: block;">Fraud Rings</label>
-                    <select id="fraudRingsFilter" onchange="performSearch()" style="width: 100%; padding: 10px; border: 1px solid #bdc3c7; border-radius: 8px;">
-                        <option value="">All Companies</option>
-                        <option value="yes">In Fraud Ring</option>
-                        <option value="no">Not in Fraud Ring</option>
-                    </select>
+            </div>
+            <div class="metric-card warning-card">
+                <div class="metric-icon-circle" style="color: #f59e0b;"><i class="fas fa-shield-alt"></i></div>
+                <div class="metric-content">
+                    <div class="metric-label">Medium Risk</div>
+                    <div class="metric-value">567</div>
                 </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-icon-circle" style="color: #8b1e3f;"><i class="fas fa-project-diagram"></i></div>
+                <div class="metric-content">
+                    <div class="metric-label">Fraud Rings</div>
+                    <div class="metric-value">12</div>
+                </div>
+            </div>
+        </div>
 
-                <div style="display: flex; align-items: flex-end;">
-                    <button class="btn btn-secondary" onclick="clearFilters()" style="width: 100%;">Clear Filters</button>
+        <!-- Filter Bar Matching Reference -->
+        <div class="filter-section">
+            <div class="filter-row">
+                <div class="filter-group" style="flex: 2;">
+                    <label class="filter-label">Search Companies</label>
+                    <input type="text" id="searchInput" class="filter-input"
+                        placeholder="Search by GSTIN or company name...">
+                </div>
+                <div class="filter-group" style="flex: 1.5;">
+                    <label class="filter-label">Risk Score Threshold: <span id="thresholdValue">0.50</span></label>
+                    <input type="range" id="riskFilter" min="0" max="1" step="0.01" value="0.50"
+                        oninput="document.getElementById('thresholdValue').textContent = parseFloat(this.value).toFixed(2); performSearch();">
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-primary" onclick="performSearch()">Search</button>
+                    <button class="btn btn-outline" onclick="clearFilters()">Reset</button>
                 </div>
             </div>
         </div>
@@ -108,7 +128,8 @@
                     <tbody id="companiesTable">
                         <tr>
                             <td colspan="7" class="text-center" style="padding: 40px;">
-                                <p style="color: var(--gray-medium); margin-bottom: 16px;">Enter a search query to get started</p>
+                                <p style="color: var(--gray-medium); margin-bottom: 16px;">Enter a search query to get
+                                    started</p>
                             </td>
                         </tr>
                     </tbody>
@@ -116,7 +137,8 @@
             </div>
 
             <!-- Pagination -->
-            <div id="pagination" style="display: none; text-align: center; margin-top: 24px; padding-top: 16px; border-top: 1px solid #ecf0f1;">
+            <div id="pagination"
+                style="display: none; text-align: center; margin-top: 24px; padding-top: 16px; border-top: 1px solid #ecf0f1;">
                 <button class="btn btn-small" id="prevBtn" onclick="previousPage()">← Previous</button>
                 <span id="pageInfo" style="margin: 0 16px; color: var(--gray-dark);"></span>
                 <button class="btn btn-small" id="nextBtn" onclick="nextPage()">Next →</button>
@@ -152,52 +174,62 @@
 
                     <!-- Tabs -->
                     <div style="border-bottom: 2px solid #ecf0f1; margin-bottom: 24px;">
-                        <button class="tab-btn active" onclick="switchTab('overview')" style="padding: 12px 24px; border: none; background: none; color: var(--primary-color); font-weight: 600; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px;">
+                        <button class="tab-btn active" onclick="switchTab('overview')"
+                            style="padding: 12px 24px; border: none; background: none; color: var(--primary-color); font-weight: 600; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px;">
                             Overview
                         </button>
-                        <button class="tab-btn" onclick="switchTab('analysis')" style="padding: 12px 24px; border: none; background: none; color: var(--gray-dark); font-weight: 600; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px;">
+                        <button class="tab-btn" onclick="switchTab('analysis')"
+                            style="padding: 12px 24px; border: none; background: none; color: var(--gray-dark); font-weight: 600; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px;">
                             Analysis
                         </button>
-                        <button class="tab-btn" onclick="switchTab('invoices')" style="padding: 12px 24px; border: none; background: none; color: var(--gray-dark); font-weight: 600; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px;">
+                        <button class="tab-btn" onclick="switchTab('invoices')"
+                            style="padding: 12px 24px; border: none; background: none; color: var(--gray-dark); font-weight: 600; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px;">
                             Invoices
                         </button>
                     </div>
 
                     <div id="overviewTab" class="tab-content">
                         <h4 style="color: var(--primary-color); margin-bottom: 16px;">Network Information</h4>
-                        <div style="background-color: var(--light-bg); padding: 16px; border-radius: 8px; margin-bottom: 24px;">
+                        <div
+                            style="background-color: var(--light-bg); padding: 16px; border-radius: 8px; margin-bottom: 24px;">
                             <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
                                 <div>
-                                    <p style="color: var(--gray-dark); font-size: 12px; margin-bottom: 4px;">Connected Entities</p>
+                                    <p style="color: var(--gray-dark); font-size: 12px; margin-bottom: 4px;">Connected
+                                        Entities</p>
                                     <p id="connectedEntities" style="font-weight: 600; font-size: 18px;">-</p>
                                 </div>
                                 <div>
-                                    <p style="color: var(--gray-dark); font-size: 12px; margin-bottom: 4px;">Network Depth</p>
+                                    <p style="color: var(--gray-dark); font-size: 12px; margin-bottom: 4px;">Network
+                                        Depth</p>
                                     <p id="networkDepth" style="font-weight: 600; font-size: 18px;">-</p>
                                 </div>
                                 <div>
-                                    <p style="color: var(--gray-dark); font-size: 12px; margin-bottom: 4px;">In Fraud Ring</p>
+                                    <p style="color: var(--gray-dark); font-size: 12px; margin-bottom: 4px;">In Fraud
+                                        Ring</p>
                                     <p id="inFraudRing" style="font-weight: 600; font-size: 18px;">-</p>
                                 </div>
                             </div>
                         </div>
 
                         <h4 style="color: var(--primary-color); margin-bottom: 16px;">Risk Factors</h4>
-                        <div id="riskFactors" style="background-color: var(--light-bg); padding: 16px; border-radius: 8px;">
+                        <div id="riskFactors"
+                            style="background-color: var(--light-bg); padding: 16px; border-radius: 8px;">
                             <!-- Risk factors will be populated here -->
                         </div>
                     </div>
 
                     <div id="analysisTab" class="tab-content" style="display: none;">
                         <h4 style="color: var(--primary-color); margin-bottom: 16px;">Detailed Analysis</h4>
-                        <div id="detailedAnalysis" style="background-color: var(--light-bg); padding: 16px; border-radius: 8px;">
+                        <div id="detailedAnalysis"
+                            style="background-color: var(--light-bg); padding: 16px; border-radius: 8px;">
                             <!-- Analysis will be populated here -->
                         </div>
                     </div>
 
                     <div id="invoicesTab" class="tab-content" style="display: none;">
                         <h4 style="color: var(--primary-color); margin-bottom: 16px;">Associated Invoices</h4>
-                        <div id="associatedInvoices" style="background-color: var(--light-bg); padding: 16px; border-radius: 8px;">
+                        <div id="associatedInvoices"
+                            style="background-color: var(--light-bg); padding: 16px; border-radius: 8px;">
                             <!-- Invoices will be populated here -->
                         </div>
                     </div>
@@ -205,7 +237,8 @@
 
                 <div style="margin-top: 24px; display: flex; gap: 12px; justify-content: flex-end;">
                     <button class="btn btn-primary" onclick="generateCompanyReport()">📑 Generate Report</button>
-                    <button class="btn" style="background-color: #bdc3c7; color: white;" onclick="closeModal()">Close</button>
+                    <button class="btn" style="background-color: #bdc3c7; color: white;"
+                        onclick="closeModal()">Close</button>
                 </div>
             </div>
         </div>
@@ -540,4 +573,5 @@
         }
     </script>
 </body>
+
 </html>

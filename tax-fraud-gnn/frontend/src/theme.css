@@ -1,0 +1,33 @@
+/* NETRA TAX Palette for React Frontend */
+:root {
+  /* Brand */
+  --primary-teal: #0F4C5C;
+  --secondary-navy: #1C2541;
+  --accent-amber: #FFB703;
+  --critical-red: #D62828;
+  --warning-orange: #F77F00;
+  --safe-green: #2A9D8F;
+  --info-blue: #3A86FF;
+
+  /* Backgrounds & text */
+  --bg-main: #F8F9FB;
+  --bg-card: #FFFFFF;
+  --text-primary: #1B1F23;
+  --text-secondary: #5F6C7B;
+  --border-light: #E0E4E8;
+  --border-dark: #2F3E5C;
+
+  /* Back-compat with existing component styles */
+  --navy: var(--secondary-navy);
+  --navy-dark: #0B132B;
+  --warm-sand: var(--accent-amber);
+  --soft-pearl: #EEF1F6;
+}
+
+/* Dark mode mapped via attribute */
+[data-theme="dark"] {
+  --bg-main: #0B132B;
+  --bg-card: #1C2541;
+  --text-primary: #EAEAEA;
+  --text-secondary: #A8B2C1;
+}

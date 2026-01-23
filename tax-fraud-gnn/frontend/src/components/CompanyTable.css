@@ -1,157 +1,190 @@
-.table-container {
-  background: var(--card-bg);
+/* Company Table - Premium Design */
+.company-table-container {
+  background: #FFFFFF;
   border-radius: 20px;
-  padding: 30px;
-  box-shadow: 0 4px 15px rgba(17, 76, 90, 0.1);
-  border: 2px solid var(--mystic-mint);
+  padding: 24px;
+  box-shadow: 0 4px 12px rgba(22, 22, 22, 0.08);
+  border: 1px solid rgba(47, 65, 86, 0.08);
+  overflow: hidden;
 }
 
-.table-container h3 {
-  font-size: 24px;
-  color: var(--oceanic-noir);
+.table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--soft-pearl-dark);
+}
+
+.table-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 18px;
   font-weight: 600;
-  padding-bottom: 15px;
-  border-bottom: 2px solid var(--mystic-mint);
+  color: var(--navy);
 }
 
-.table-wrapper {
-  overflow-x: auto;
+.table-actions {
+  display: flex;
+  gap: 10px;
 }
 
-.companies-table {
+.company-table {
   width: 100%;
-  border-collapse: collapse;
-  margin-top: 15px;
+  border-collapse: separate;
+  border-spacing: 0;
 }
 
-.companies-table thead {
-  background: linear-gradient(135deg, var(--nocturnal-expedition) 0%, var(--oceanic-noir) 100%);
-  color: var(--arctic-powder);
+.company-table thead {
+  background: linear-gradient(135deg, var(--navy) 0%, var(--navy-dark) 100%);
 }
 
-.companies-table th {
-  padding: 15px;
+.company-table th {
+  padding: 14px 18px;
   text-align: left;
   font-weight: 600;
+  color: var(--soft-pearl);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.company-table th:first-child {
+  border-radius: 10px 0 0 0;
+}
+
+.company-table th:last-child {
+  border-radius: 0 10px 0 0;
+}
+
+.company-table td {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--soft-pearl-dark);
+  color: var(--obsidian-black);
   font-size: 14px;
+  transition: background-color 0.2s ease;
+}
+
+.company-table tbody tr {
+  transition: all 0.2s ease;
+}
+
+.company-table tbody tr:hover {
+  background: var(--soft-pearl);
+}
+
+.company-table tbody tr:hover td {
+  color: var(--navy);
+}
+
+.company-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Risk Level Badges */
+.risk-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
-.companies-table td {
-  padding: 15px;
-  border-bottom: 1px solid var(--mystic-mint);
-  color: var(--oceanic-noir);
+.risk-badge.high {
+  background: rgba(113, 0, 20, 0.1);
+  color: var(--crimson-depth);
 }
 
-.table-row {
-  cursor: pointer;
-  transition: all 0.3s ease;
+.risk-badge.medium {
+  background: rgba(179, 143, 91, 0.15);
+  color: var(--warm-sand-dark);
 }
 
-.table-row:hover {
-  background: var(--mystic-mint);
-  transform: translateX(5px);
+.risk-badge.low {
+  background: rgba(45, 139, 87, 0.1);
+  color: var(--success);
 }
 
-.fraud-probability {
-  font-weight: 600;
-  color: var(--deep-saffron);
+/* Score Bar */
+.score-bar {
+  width: 100%;
+  height: 6px;
+  background: var(--soft-pearl-dark);
+  border-radius: 3px;
+  overflow: hidden;
 }
 
-.risk-badge {
-  display: inline-block;
-  padding: 6px 12px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 600;
-  text-align: center;
+.score-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.5s ease;
 }
 
-.risk-badge.risk-high {
-  background: rgba(255, 153, 50, 0.2);
-  color: var(--deep-saffron);
-  border: 1px solid var(--deep-saffron);
+.score-fill.high {
+  background: linear-gradient(90deg, var(--crimson-depth), var(--crimson-light));
 }
 
-.risk-badge.risk-medium {
-  background: rgba(255, 200, 1, 0.2);
-  color: var(--forsythia);
-  border: 1px solid var(--forsythia);
+.score-fill.medium {
+  background: linear-gradient(90deg, var(--warm-sand-dark), var(--warm-sand));
 }
 
-.risk-badge.risk-low {
-  background: rgba(17, 76, 90, 0.2);
-  color: var(--nocturnal-expedition);
-  border: 1px solid var(--nocturnal-expedition);
+.score-fill.low {
+  background: linear-gradient(90deg, var(--success-dark), var(--success));
 }
 
-.status-badge {
-  display: inline-block;
-  padding: 6px 12px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.status-badge.status-fraud {
-  background: rgba(255, 153, 50, 0.2);
-  color: var(--deep-saffron);
-}
-
-.status-badge.status-normal {
-  background: rgba(17, 76, 90, 0.2);
-  color: var(--nocturnal-expedition);
-}
-
-.btn-view {
-  padding: 8px 16px;
-  background: linear-gradient(135deg, var(--forsythia), var(--deep-saffron));
-  color: var(--oceanic-noir);
+/* Action Button */
+.action-btn {
+  background: var(--soft-pearl);
   border: none;
-  border-radius: 8px;
+  padding: 6px 12px;
+  border-radius: 6px;
   font-size: 12px;
   font-weight: 600;
+  color: var(--navy);
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
 }
 
-.btn-view:hover {
-  box-shadow: 0 4px 12px rgba(255, 200, 1, 0.4);
+.action-btn:hover {
+  background: var(--navy);
+  color: var(--soft-pearl);
+  transform: translateY(-1px);
 }
 
-.loading-state,
-.empty-state {
+/* Pagination */
+.pagination {
   display: flex;
-  flex-direction: column;
   justify-content: center;
   align-items: center;
-  padding: 60px 20px;
-  color: var(--nocturnal-expedition);
+  gap: 8px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--soft-pearl-dark);
 }
 
-.loading-spinner {
-  width: 50px;
-  height: 50px;
-  border: 4px solid var(--mystic-mint);
-  border-top-color: var(--forsythia);
-  border-radius: 50%;
-  margin-bottom: 20px;
+.page-btn {
+  background: var(--soft-pearl);
+  border: none;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--navy);
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
-@media (max-width: 768px) {
-  .table-container {
-    padding: 20px;
-  }
-
-  .companies-table {
-    font-size: 12px;
-  }
-
-  .companies-table th,
-  .companies-table td {
-    padding: 10px 8px;
-  }
+.page-btn:hover,
+.page-btn.active {
+  background: var(--navy);
+  color: var(--soft-pearl);
 }
 
+.page-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

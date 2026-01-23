@@ -1,78 +1,169 @@
-.dashboard {
-  max-width: 1400px;
+/* Dashboard Page - Premium Design */
+.dashboard-page {
+  padding: 100px 30px 40px;
+  max-width: 1440px;
   margin: 0 auto;
-  padding: 40px 30px;
+  min-height: 100vh;
 }
 
 .dashboard-header {
-  margin-bottom: 40px;
-  padding-bottom: 20px;
-  border-bottom: 3px solid;
-  border-image: linear-gradient(90deg, var(--forsythia), var(--deep-saffron)) 1;
+  margin-bottom: 32px;
 }
 
-.dashboard-header h2 {
-  font-size: 36px;
-  color: var(--oceanic-noir);
-  margin-bottom: 10px;
+.dashboard-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 32px;
   font-weight: 700;
+  color: var(--navy);
+  margin-bottom: 8px;
+  letter-spacing: -0.5px;
 }
 
-.dashboard-header p {
-  color: var(--nocturnal-expedition);
-  font-size: 18px;
-  opacity: 0.8;
+.dashboard-subtitle {
+  font-size: 15px;
+  color: var(--navy-light);
+  font-weight: 400;
 }
 
-.metrics-grid {
+/* Metrics Row */
+.metrics-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 25px;
-  margin-bottom: 50px;
+  gap: 20px;
+  margin-bottom: 32px;
 }
 
+/* Charts Section */
 .charts-section {
-  margin-top: 40px;
-}
-
-.charts-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
-  gap: 25px;
-  margin-bottom: 30px;
+  gap: 20px;
+  margin-bottom: 32px;
+}
+
+.chart-full-width {
+  grid-column: 1 / -1;
+}
+
+/* Quick Actions */
+.quick-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 32px;
+}
+
+.quick-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  background: #FFFFFF;
+  border: 2px solid var(--soft-pearl-dark);
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--navy);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+
+.quick-action-btn:hover {
+  border-color: var(--navy);
+  background: var(--soft-pearl);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(47, 65, 86, 0.15);
+}
+
+.quick-action-btn i {
+  color: var(--crimson-depth);
+}
+
+/* Loading State */
+.dashboard-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  color: var(--navy-light);
+}
+
+.dashboard-spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid var(--soft-pearl-dark);
+  border-top-color: var(--navy);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-bottom: 16px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Error State */
+.dashboard-error {
+  text-align: center;
+  padding: 60px;
+  background: #FFFFFF;
+  border-radius: 20px;
+  box-shadow: 0 4px 12px rgba(22, 22, 22, 0.08);
+}
+
+.dashboard-error-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.dashboard-error-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 20px;
+  color: var(--crimson-depth);
+  margin-bottom: 8px;
+}
+
+.dashboard-error-text {
+  color: var(--navy-light);
+  font-size: 14px;
+  margin-bottom: 20px;
+}
+
+.retry-btn {
+  background: linear-gradient(135deg, var(--navy) 0%, var(--navy-dark) 100%);
+  color: var(--soft-pearl);
+  border: none;
+  padding: 12px 24px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.retry-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(47, 65, 86, 0.3);
 }
 
 @media (max-width: 768px) {
-  .dashboard {
-    padding: 20px 15px;
+  .dashboard-page {
+    padding: 90px 20px 30px;
   }
 
-  .metrics-grid {
+  .dashboard-title {
+    font-size: 26px;
+  }
+
+  .charts-section {
     grid-template-columns: 1fr;
-    gap: 15px;
   }
 
-  .charts-row {
+  .metrics-row {
     grid-template-columns: 1fr;
   }
-
-  .dashboard-header h2 {
-    font-size: 28px;
-  }
 }
-
-.loading-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 60vh;
-}
-
-.loading-spinner {
-  width: 60px;
-  height: 60px;
-  border: 5px solid var(--mystic-mint);
-  border-top-color: var(--forsythia);
-  border-radius: 50%;
-}
-

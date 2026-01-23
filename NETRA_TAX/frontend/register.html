@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Create Account - NETRA TAX</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --navy: #2F4156;
+      --navy-dark: #151E28;
+      --crimson: #710014;
+      --crimson-light: #8F1A2E;
+      --pearl: #F2F1ED;
+      --white: #FFFFFF;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+    body { background: radial-gradient(circle at 0% 0%, var(--navy-dark) 0%, #000 100%); height: 100vh; display: flex; align-items: center; justify-content: center; }
+    .card { background: rgba(255,255,255,0.05); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); border-radius: 24px; padding: 32px; width: 420px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
+    h1 { font-family: 'Outfit', sans-serif; color: var(--white); font-size: 24px; margin-bottom: 12px; }
+    p { color: rgba(255,255,255,0.7); font-size: 13px; margin-bottom: 20px; }
+    .form-group { margin-bottom: 16px; }
+    input { width: 100%; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 12px; color: var(--white); font-size: 15px; }
+    input:focus { outline: none; background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.3); box-shadow: 0 0 0 4px rgba(255,255,255,0.05); }
+    .btn { width: 100%; background: var(--white); color: var(--navy-dark); border: none; border-radius: 12px; padding: 12px; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 8px; }
+    .btn:hover { background: var(--pearl); }
+    .error { display:none; background: rgba(220,53,69,0.2); color: #ff8080; padding: 10px; border-radius: 8px; font-size: 13px; margin-bottom: 12px; border: 1px solid rgba(220,53,69,0.3); }
+    .success { display:none; background: rgba(40,167,69,0.2); color: #9ff0b7; padding: 10px; border-radius: 8px; font-size: 13px; margin-bottom: 12px; border: 1px solid rgba(40,167,69,0.3); }
+    .links { margin-top: 12px; text-align: center; }
+    .links a { color: rgba(255,255,255,0.6); text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Create Account</h1>
+    <p>Register to access NETRA TAX.</p>
+    <div id="error" class="error"></div>
+    <div id="success" class="success"></div>
+    <form id="registerForm">
+      <div class="form-group">
+        <input type="text" id="username" placeholder="Username" required />
+      </div>
+      <div class="form-group">
+        <input type="password" id="password" placeholder="Password" required />
+      </div>
+      <div class="form-group">
+        <input type="password" id="confirm" placeholder="Confirm Password" required />
+      </div>
+      <button type="submit" class="btn">Create Account</button>
+    </form>
+    <div class="links"><a href="/login">Back to Login</a></div>
+  </div>
+  <script src="/js/api.js"></script>
+  <script>
+    const form = document.getElementById('registerForm');
+    const error = document.getElementById('error');
+    const success = document.getElementById('success');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      error.style.display = 'none';
+      success.style.display = 'none';
+      const u = document.getElementById('username').value.trim();
+      const p = document.getElementById('password').value;
+      const c = document.getElementById('confirm').value;
+      if (!u || !p) { error.textContent = 'Username and password required'; error.style.display='block'; return; }
+      if (p !== c) { error.textContent = 'Passwords do not match'; error.style.display='block'; return; }
+      try {
+        const resp = await api.request('/api/register', { method: 'POST', body: JSON.stringify({ username: u, password: p }) });
+        if (resp && resp.status === 'ok') {
+          success.textContent = 'Registration successful. Redirecting to login...';
+          success.style.display = 'block';
+          setTimeout(() => { window.location.href = '/login'; }, 1200);
+        } else {
+          throw new Error(resp && resp.error ? resp.error : 'Registration failed');
+        }
+      } catch (err) {
+        error.textContent = err.message || 'Registration failed';
+        error.style.display = 'block';
+      }
+    });
+  </script>
+</body>
+</html>

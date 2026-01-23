@@ -6,6 +6,8 @@
     <title>NETRATAX - Dashboard</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/landing.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/navy-override.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/chart-loading-states.css') }}">
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <style>
         body {
@@ -157,6 +159,7 @@
                 <li><a href="/landing" class="nav-link">Home</a></li>
                 <li><a href="/dashboard" class="nav-link active">Dashboard</a></li>
                 <li><a href="/companies" class="nav-link">Companies</a></li>
+                <li><a href="/advanced-analytics" class="nav-link">Advanced Analytics</a></li>
                 <li><a href="/upload" class="nav-link">Upload</a></li>
                 <li><a href="/chatbot" class="nav-link">Chatbox</a></li>
             </ul>
@@ -236,17 +239,27 @@
 
 
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/ui-enhancements.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/scroll-effects.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/chart-fallbacks.js') }}"></script>
     <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
     <script>
-        // Initialize dashboard on load
+        // Initialize dashboard with fallback support
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('Dashboard loading...');
-            setTimeout(() => {
-                loadFraudDistributionChart();
-                loadRiskDistributionChart();
-                loadRiskByLocationChart();
-                loadTurnoverVsRiskChart();
-            }, 300);
+            console.log('🚀 Dashboard loading with fallback support...');
+            
+            // Use the new fallback system instead of direct chart loading
+            if (typeof initializeDashboardCharts === 'function') {
+                setTimeout(initializeDashboardCharts, 300);
+            } else {
+                console.warn('⚠️ Fallback system not loaded, using legacy chart loading');
+                setTimeout(() => {
+                    loadFraudDistributionChart();
+                    loadRiskDistributionChart();
+                    loadRiskByLocationChart();
+                    loadTurnoverVsRiskChart();
+                }, 300);
+            }
         });
         
         // Handle window resize for responsive charts

@@ -4,6 +4,62 @@
  */
 
 // ============================================================================
+// THEME MANAGEMENT
+// ============================================================================
+
+/**
+ * Toggle between light and dark themes
+ */
+function toggleTheme() {
+    const currentTheme = document.documentElement.getAttribute('data-theme');
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    
+    document.documentElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('netra-theme', newTheme);
+    
+    // Show notification
+    showNotification(`Switched to ${newTheme} mode`, 'info', 2000);
+    
+    // Update Plotly charts for dark mode
+    updateChartsForTheme(newTheme);
+}
+
+/**
+ * Load saved theme on page load
+ */
+function loadSavedTheme() {
+    const savedTheme = localStorage.getItem('netra-theme') || 'light';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+}
+
+/**
+ * Update Plotly charts for theme change
+ */
+function updateChartsForTheme(theme) {
+    const plotlyCharts = document.querySelectorAll('.js-plotly-plot');
+    const bgColor = theme === 'dark' ? 'transparent' : 'transparent';
+    const fontColor = theme === 'dark' ? '#E8ECF1' : '#1B1F23';
+    const gridColor = theme === 'dark' ? '#2D3848' : '#E0E4E8';
+    
+    plotlyCharts.forEach(chart => {
+        try {
+            Plotly.relayout(chart, {
+                'paper_bgcolor': bgColor,
+                'plot_bgcolor': bgColor,
+                'font.color': fontColor,
+                'xaxis.gridcolor': gridColor,
+                'yaxis.gridcolor': gridColor
+            });
+        } catch (e) {
+            // Chart may not support relayout
+        }
+    });
+}
+
+// Load theme on page load
+document.addEventListener('DOMContentLoaded', loadSavedTheme);
+
+// ============================================================================
 // AUTH & USER MANAGEMENT
 // ============================================================================
 
@@ -485,4 +541,33 @@ document.addEventListener('DOMContentLoaded', () => {
     if (window.location.pathname !== '/login.html' && !window.location.pathname.endsWith('login.html')) {
         // Don't force auth check - let each page decide
     }
+
+    // Apply persisted theme preference (light/dark)
+    try {
+        const theme = getTheme();
+        applyTheme(theme);
+    } catch (e) {
+        // no-op
+    }
 });
+
+// ============================================================================
+// THEME TOGGLING (Light/Dark)
+// ============================================================================
+
+const THEME_KEY = 'netra_theme';
+
+function getTheme() {
+    return localStorage.getItem(THEME_KEY) || 'light';
+}
+
+function applyTheme(theme) {
+    const t = theme === 'dark' ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', t);
+    localStorage.setItem(THEME_KEY, t);
+}
+
+function toggleTheme() {
+    const next = getTheme() === 'dark' ? 'light' : 'dark';
+    applyTheme(next);
+}

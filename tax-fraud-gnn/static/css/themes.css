@@ -1,0 +1,193 @@
+/* ============================================================================
+   Theme Configurations - Light and Dark Modes
+   ============================================================================ */
+
+/* ============================================================================
+   Dark Theme
+   ============================================================================ */
+
+body[data-theme="dark"],
+[data-theme="dark"] {
+  /* Background Colors */
+  --bg-primary: var(--obsidian-black);
+  --bg-secondary: var(--obsidian-light);
+  --bg-tertiary: var(--obsidian-lighter);
+  --bg-card: rgba(47, 65, 86, 0.2);
+  --bg-navbar: rgba(27, 22, 22, 0.95);
+  --bg-modal: rgba(27, 22, 22, 0.98);
+  
+  /* Text Colors */
+  --text-primary: var(--soft-pearl);
+  --text-secondary: var(--soft-pearl-dark);
+  --text-tertiary: var(--soft-pearl-darker);
+  --text-inverse: var(--navy);
+  
+  /* Border Colors */
+  --border-color: rgba(247, 242, 240, 0.15);
+  --border-color-light: rgba(247, 242, 240, 0.08);
+  --border-color-dark: rgba(247, 242, 240, 0.25);
+  
+  /* Overlay */
+  --overlay: rgba(27, 22, 22, 0.7);
+  
+  /* Shadows - Darker for dark mode */
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --shadow-xl: 0 12px 32px rgba(0, 0, 0, 0.6);
+  
+  /* Glow effects are more visible in dark mode */
+  --shadow-glow-crimson: 0 0 30px rgba(143, 0, 68, 0.5);
+  --shadow-glow-navy: 0 0 30px rgba(61, 83, 104, 0.5);
+  --shadow-glow-sand: 0 0 30px rgba(212, 184, 154, 0.5);
+}
+
+/* ============================================================================
+   Theme Transition
+   ============================================================================ */
+
+body {
+  transition: background-color var(--transition-normal),
+              color var(--transition-normal);
+}
+
+* {
+  transition-property: background-color, color, border-color, box-shadow;
+  transition-duration: var(--transition-normal);
+  transition-timing-function: var(--easing-standard);
+}
+
+/* Disable transitions for elements that shouldn't animate */
+*:where(
+  input,
+  textarea,
+  select,
+  button:active,
+  [data-no-transition]
+) {
+  transition: none !important;
+}
+
+/* ============================================================================
+   High Contrast Theme (Accessibility)
+   ============================================================================ */
+
+body[data-theme="high-contrast"],
+[data-theme="high-contrast"] {
+  /* Maximum contrast backgrounds */
+  --bg-primary: #FFFFFF;
+  --bg-secondary: #F0F0F0;
+  --bg-tertiary: #E0E0E0;
+  --bg-card: #FFFFFF;
+  --bg-navbar: #FFFFFF;
+  --bg-modal: #FFFFFF;
+  
+  /* Maximum contrast text */
+  --text-primary: #000000;
+  --text-secondary: #1A1A1A;
+  --text-tertiary: #333333;
+  --text-inverse: #FFFFFF;
+  
+  /* High contrast borders */
+  --border-color: #000000;
+  --border-color-light: #333333;
+  --border-color-dark: #000000;
+  
+  /* Stronger colors for visibility */
+  --primary: #1F2B3A;
+  --danger: #8F0044;
+  --warning: #8D795A;
+  
+  /* Remove subtle shadows */
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --shadow-xl: 0 12px 32px rgba(0, 0, 0, 0.6);
+}
+
+/* ============================================================================
+   Reduced Motion (Accessibility)
+   ============================================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ============================================================================
+   System Theme Detection
+   ============================================================================ */
+
+@media (prefers-color-scheme: dark) {
+  body:not([data-theme]) {
+    /* Apply dark theme if no explicit theme is set */
+    --bg-primary: var(--obsidian-black);
+    --bg-secondary: var(--obsidian-light);
+    --bg-tertiary: var(--obsidian-lighter);
+    --bg-card: rgba(47, 65, 86, 0.2);
+    --bg-navbar: rgba(27, 22, 22, 0.95);
+    --bg-modal: rgba(27, 22, 22, 0.98);
+    
+    --text-primary: var(--soft-pearl);
+    --text-secondary: var(--soft-pearl-dark);
+    --text-tertiary: var(--soft-pearl-darker);
+    --text-inverse: var(--navy);
+    
+    --border-color: rgba(247, 242, 240, 0.15);
+    --border-color-light: rgba(247, 242, 240, 0.08);
+    --border-color-dark: rgba(247, 242, 240, 0.25);
+    
+    --overlay: rgba(27, 22, 22, 0.7);
+  }
+}
+
+/* ============================================================================
+   Theme-Specific Component Adjustments
+   ============================================================================ */
+
+/* Dark mode specific adjustments */
+[data-theme="dark"] .metric-card,
+[data-theme="dark"] .chart-container,
+[data-theme="dark"] .table-container {
+  background: rgba(47, 65, 86, 0.15);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+[data-theme="dark"] .risk-badge.high,
+[data-theme="dark"] .risk-level-high {
+  background: rgba(143, 0, 68, 0.3);
+  color: var(--crimson-light);
+}
+
+[data-theme="dark"] .risk-badge.medium,
+[data-theme="dark"] .risk-level-medium {
+  background: rgba(212, 184, 154, 0.3);
+  color: var(--warm-sand-light);
+}
+
+[data-theme="dark"] .risk-badge.low,
+[data-theme="dark"] .risk-level-low {
+  background: rgba(46, 204, 113, 0.3);
+  color: var(--success-light);
+}
+
+/* High contrast mode adjustments */
+[data-theme="high-contrast"] * {
+  border-width: 2px !important;
+}
+
+[data-theme="high-contrast"] .btn {
+  border: 2px solid currentColor !important;
+}
+
+[data-theme="high-contrast"] .metric-card,
+[data-theme="high-contrast"] .chart-container {
+  border: 2px solid var(--border-color) !important;
+}

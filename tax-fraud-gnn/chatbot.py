@@ -57,8 +57,24 @@ st.markdown("""
 st.markdown('<div class="main-header"><h1>🕵️ GST Fraud Detection Assistant</h1></div>', unsafe_allow_html=True)
 st.info("Ask questions about GST companies, invoices, fraud patterns, and tax compliance")
 
-# Initialize Groq client with the provided API key
-GROQ_API_KEY = "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"
+# Initialize Groq client - Load API key from environment variable
+# Make sure to create a .env file with: GROQ_API_KEY=your_actual_key_here
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
+try:
+    # Try Streamlit secrets first (for deployment)
+    GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
+except Exception:
+    # Fall back to environment variable
+    GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+    if not GROQ_API_KEY:
+        st.error("⚠️ GROQ_API_KEY not found! Please set it in .env file or Streamlit secrets.")
+        st.stop()
+
 client = Groq(api_key=GROQ_API_KEY)
 
 # Load data from the tax-fraud-gnn system

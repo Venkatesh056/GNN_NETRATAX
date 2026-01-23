@@ -1,0 +1,460 @@
+/* ============================================================================
+   Table Components - Data Tables with Navy Theme
+   ============================================================================ */
+
+/* ============================================================================
+   Base Table Container
+   ============================================================================ */
+
+.table-container {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border-color);
+  overflow-x: auto;
+  transition: all var(--transition-normal);
+}
+
+.table-container:hover {
+  box-shadow: var(--shadow-lg);
+}
+
+/* ============================================================================
+   Data Table
+   ============================================================================ */
+
+.data-table,
+.companies-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+/* Table Header */
+.data-table thead,
+.companies-table thead {
+  background: var(--gradient-primary);
+  color: var(--text-inverse);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.data-table th,
+.companies-table th {
+  padding: var(--spacing-md) var(--spacing-lg);
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.8125rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.data-table th.sortable,
+.companies-table th.sortable {
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+  padding-right: var(--spacing-xl);
+}
+
+.data-table th.sortable::after,
+.companies-table th.sortable::after {
+  content: '⇅';
+  position: absolute;
+  right: var(--spacing-md);
+  opacity: 0.5;
+  transition: opacity var(--transition-fast);
+}
+
+.data-table th.sortable:hover::after,
+.companies-table th.sortable:hover::after {
+  opacity: 1;
+}
+
+.data-table th.sorted-asc::after {
+  content: '↑';
+  opacity: 1;
+}
+
+.data-table th.sorted-desc::after {
+  content: '↓';
+  opacity: 1;
+}
+
+/* Table Body */
+.data-table tbody,
+.companies-table tbody {
+  background: var(--bg-card);
+}
+
+.data-table td,
+.companies-table td {
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-primary);
+  transition: all var(--transition-fast);
+}
+
+.data-table tbody tr,
+.companies-table tbody tr {
+  transition: all var(--transition-fast);
+}
+
+.data-table tbody tr:hover,
+.companies-table tbody tr:hover {
+  background: var(--bg-secondary);
+  cursor: pointer;
+  transform: scale(1.01);
+}
+
+.data-table tbody tr:last-child td,
+.companies-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Alternating rows */
+.data-table tbody tr:nth-child(even),
+.companies-table tbody tr:nth-child(even) {
+  background: rgba(247, 242, 240, 0.3);
+}
+
+[data-theme="dark"] .data-table tbody tr:nth-child(even),
+[data-theme="dark"] .companies-table tbody tr:nth-child(even) {
+  background: rgba(47, 65, 86, 0.1);
+}
+
+/* ============================================================================
+   Risk Badges in Tables
+   ============================================================================ */
+
+.risk-badge,
+.risk-level {
+  display: inline-block;
+  padding: var(--spacing-xs) var(--spacing-md);
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.risk-badge.high,
+.risk-level-high {
+  background: rgba(112, 0, 52, 0.15);
+  color: var(--crimson-depth);
+  border: 1px solid var(--crimson-depth);
+  animation: pulse-badge 2s ease-in-out infinite;
+}
+
+@keyframes pulse-badge {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(112, 0, 52, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(112, 0, 52, 0);
+  }
+}
+
+.risk-badge.medium,
+.risk-level-medium {
+  background: rgba(195, 165, 130, 0.15);
+  color: var(--warm-sand-dark);
+  border: 1px solid var(--warm-sand);
+}
+
+.risk-badge.low,
+.risk-level-low {
+  background: rgba(39, 174, 96, 0.15);
+  color: var(--success-dark);
+  border: 1px solid var(--success);
+}
+
+[data-theme="dark"] .risk-badge.high,
+[data-theme="dark"] .risk-level-high {
+  background: rgba(143, 0, 68, 0.3);
+  color: var(--crimson-light);
+}
+
+[data-theme="dark"] .risk-badge.medium,
+[data-theme="dark"] .risk-level-medium {
+  background: rgba(212, 184, 154, 0.3);
+  color: var(--warm-sand-light);
+}
+
+[data-theme="dark"] .risk-badge.low,
+[data-theme="dark"] .risk-level-low {
+  background: rgba(46, 204, 113, 0.3);
+  color: var(--success-light);
+}
+
+/* ============================================================================
+   Table Actions
+   ============================================================================ */
+
+.table-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  justify-content: flex-end;
+}
+
+.table-action-btn {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+}
+
+.table-action-btn:hover {
+  background: var(--bg-secondary);
+  color: var(--navy);
+}
+
+/* ============================================================================
+   Table Pagination
+   ============================================================================ */
+
+.table-pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: var(--spacing-lg);
+  padding-top: var(--spacing-lg);
+  border-top: 1px solid var(--border-color);
+}
+
+.pagination-info {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.pagination-controls {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.pagination-btn {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-size: 0.875rem;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background: var(--navy);
+  color: var(--text-inverse);
+  border-color: var(--navy);
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination-btn.active {
+  background: var(--navy);
+  color: var(--text-inverse);
+  border-color: var(--navy);
+}
+
+/* ============================================================================
+   Table Search and Filters
+   ============================================================================ */
+
+.table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-lg);
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
+}
+
+.table-search {
+  position: relative;
+  flex: 1;
+  min-width: 200px;
+  max-width: 400px;
+}
+
+.table-search-input {
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  padding-left: var(--spacing-2xl);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  transition: all var(--transition-fast);
+}
+
+.table-search-input:focus {
+  outline: none;
+  border-color: var(--navy);
+  box-shadow: 0 0 0 3px rgba(47, 65, 86, 0.1);
+}
+
+.table-search-icon {
+  position: absolute;
+  left: var(--spacing-md);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-secondary);
+  pointer-events: none;
+}
+
+/* ============================================================================
+   Table Stats
+   ============================================================================ */
+
+.table-stats {
+  display: flex;
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+  padding: var(--spacing-md);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+}
+
+.table-stat {
+  flex: 1;
+  text-align: center;
+}
+
+.table-stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--navy);
+  display: block;
+}
+
+.table-stat-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ============================================================================
+   Expandable Rows
+   ============================================================================ */
+
+.table-row-expandable {
+  cursor: pointer;
+}
+
+.table-row-expandable td:first-child::before {
+  content: '▶';
+  display: inline-block;
+  margin-right: var(--spacing-sm);
+  transition: transform var(--transition-fast);
+  font-size: 0.75rem;
+}
+
+.table-row-expandable.expanded td:first-child::before {
+  transform: rotate(90deg);
+}
+
+.table-row-details {
+  display: none;
+}
+
+.table-row-details.visible {
+  display: table-row;
+}
+
+.table-row-details td {
+  background: var(--bg-secondary);
+  padding: var(--spacing-lg);
+}
+
+/* ============================================================================
+   Responsive Tables
+   ============================================================================ */
+
+@media (max-width: 767px) {
+  .table-container {
+    padding: var(--spacing-md);
+  }
+  
+  .data-table,
+  .companies-table {
+    font-size: 0.75rem;
+  }
+  
+  .data-table th,
+  .data-table td,
+  .companies-table th,
+  .companies-table td {
+    padding: var(--spacing-sm);
+  }
+  
+  .table-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .table-search {
+    max-width: 100%;
+  }
+  
+  .table-pagination {
+    flex-direction: column;
+    gap: var(--spacing-md);
+  }
+  
+  .table-stats {
+    flex-direction: column;
+  }
+}
+
+/* Mobile card view for tables */
+@media (max-width: 479px) {
+  .data-table thead,
+  .companies-table thead {
+    display: none;
+  }
+  
+  .data-table tbody tr,
+  .companies-table tbody tr {
+    display: block;
+    margin-bottom: var(--spacing-md);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md);
+  }
+  
+  .data-table td,
+  .companies-table td {
+    display: flex;
+    justify-content: space-between;
+    padding: var(--spacing-sm) 0;
+    border-bottom: 1px solid var(--border-color-light);
+  }
+  
+  .data-table td:last-child,
+  .companies-table td:last-child {
+    border-bottom: none;
+  }
+  
+  .data-table td::before,
+  .companies-table td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    font-size: 0.75rem;
+  }
+}

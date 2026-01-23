@@ -1,0 +1,360 @@
+/* ============================================================================
+   Button Components - All Variants and States
+   ============================================================================ */
+
+/* ============================================================================
+   Base Button Styles
+   ============================================================================ */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-lg);
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.5;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  position: relative;
+  overflow: hidden;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* ============================================================================
+   Button Sizes
+   ============================================================================ */
+
+.btn-xs {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: 0.75rem;
+  border-radius: var(--radius-sm);
+}
+
+.btn-sm {
+  padding: var(--spacing-xs) var(--spacing-md);
+  font-size: 0.8125rem;
+}
+
+.btn-md {
+  padding: var(--spacing-sm) var(--spacing-lg);
+  font-size: 0.875rem;
+}
+
+.btn-lg {
+  padding: var(--spacing-md) var(--spacing-xl);
+  font-size: 1rem;
+}
+
+.btn-xl {
+  padding: var(--spacing-lg) var(--spacing-2xl);
+  font-size: 1.125rem;
+}
+
+/* ============================================================================
+   Primary Button
+   ============================================================================ */
+
+.btn-primary {
+  background: var(--gradient-primary);
+  color: var(--text-inverse);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-primary:hover {
+  background: var(--gradient-primary-reverse);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ============================================================================
+   Secondary Button
+   ============================================================================ */
+
+.btn-secondary {
+  background: var(--warm-sand);
+  color: var(--navy);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-secondary:hover {
+  background: var(--warm-sand-dark);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-secondary:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ============================================================================
+   Danger Button
+   ============================================================================ */
+
+.btn-danger {
+  background: var(--gradient-danger);
+  color: var(--text-inverse);
+  box-shadow: var(--shadow-glow-crimson);
+}
+
+.btn-danger:hover {
+  background: var(--gradient-danger-reverse);
+  transform: translateY(-2px);
+  box-shadow: 0 0 30px rgba(143, 0, 68, 0.5);
+}
+
+.btn-danger:active {
+  transform: translateY(0);
+}
+
+/* ============================================================================
+   Success Button
+   ============================================================================ */
+
+.btn-success {
+  background: linear-gradient(135deg, var(--success) 0%, var(--success-dark) 100%);
+  color: var(--text-inverse);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-success:hover {
+  background: linear-gradient(135deg, var(--success-light) 0%, var(--success) 100%);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+/* ============================================================================
+   Ghost Button
+   ============================================================================ */
+
+.btn-ghost {
+  background: transparent;
+  color: var(--navy);
+  border: 2px solid var(--navy);
+  box-shadow: none;
+}
+
+.btn-ghost:hover {
+  background: var(--navy);
+  color: var(--text-inverse);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-ghost:active {
+  transform: translateY(0);
+}
+
+/* ============================================================================
+   Outline Button
+   ============================================================================ */
+
+.btn-outline {
+  background: transparent;
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  box-shadow: none;
+}
+
+.btn-outline:hover {
+  background: var(--bg-secondary);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+/* ============================================================================
+   Link Button
+   ============================================================================ */
+
+.btn-link {
+  background: transparent;
+  color: var(--primary);
+  padding: 0;
+  box-shadow: none;
+  text-decoration: underline;
+}
+
+.btn-link:hover {
+  color: var(--primary-light);
+  transform: none;
+}
+
+/* ============================================================================
+   Icon Button
+   ============================================================================ */
+
+.btn-icon {
+  padding: var(--spacing-sm);
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-full);
+}
+
+.btn-icon-sm {
+  padding: var(--spacing-xs);
+  width: 32px;
+  height: 32px;
+}
+
+.btn-icon-lg {
+  padding: var(--spacing-md);
+  width: 48px;
+  height: 48px;
+}
+
+/* ============================================================================
+   Button Group
+   ============================================================================ */
+
+.btn-group {
+  display: inline-flex;
+  gap: 0;
+}
+
+.btn-group .btn {
+  border-radius: 0;
+  margin-left: -1px;
+}
+
+.btn-group .btn:first-child {
+  border-top-left-radius: var(--radius-md);
+  border-bottom-left-radius: var(--radius-md);
+  margin-left: 0;
+}
+
+.btn-group .btn:last-child {
+  border-top-right-radius: var(--radius-md);
+  border-bottom-right-radius: var(--radius-md);
+}
+
+/* ============================================================================
+   Ripple Effect
+   ============================================================================ */
+
+.btn::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+.btn:active::before {
+  width: 300px;
+  height: 300px;
+}
+
+/* ============================================================================
+   Loading State
+   ============================================================================ */
+
+.btn-loading {
+  position: relative;
+  color: transparent;
+  pointer-events: none;
+}
+
+.btn-loading::after {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  top: 50%;
+  left: 50%;
+  margin-left: -8px;
+  margin-top: -8px;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  border-top-color: transparent;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ============================================================================
+   Full Width Button
+   ============================================================================ */
+
+.btn-block {
+  display: flex;
+  width: 100%;
+}
+
+/* ============================================================================
+   Floating Action Button
+   ============================================================================ */
+
+.btn-fab {
+  position: fixed;
+  bottom: var(--spacing-2xl);
+  right: var(--spacing-2xl);
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-full);
+  background: var(--gradient-primary);
+  color: var(--text-inverse);
+  box-shadow: var(--shadow-xl);
+  z-index: 100;
+}
+
+.btn-fab:hover {
+  transform: scale(1.1);
+  box-shadow: 0 12px 40px rgba(47, 65, 86, 0.3);
+}
+
+/* ============================================================================
+   Gradient Animated Button
+   ============================================================================ */
+
+.btn-gradient-animated {
+  background: var(--gradient-animated-primary);
+  background-size: 200% 200%;
+  animation: gradient-shift 3s ease infinite;
+  color: var(--text-inverse);
+}
+
+/* ============================================================================
+   Responsive Buttons
+   ============================================================================ */
+
+@media (max-width: 767px) {
+  .btn {
+    min-height: 44px;
+    padding: var(--spacing-sm) var(--spacing-md);
+  }
+  
+  .btn-fab {
+    bottom: var(--spacing-lg);
+    right: var(--spacing-lg);
+  }
+}

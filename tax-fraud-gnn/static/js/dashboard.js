@@ -1,26 +1,41 @@
 /**
  * Tax Fraud Detection Dashboard - JavaScript
  * Handles Plotly chart rendering and API interactions
+ * Updated with Navy Color Palette
  */
+
+// ============================================================================
+// Navy Color Palette
+// ============================================================================
+
+const NAVY_COLORS = {
+    navy: '#2F4156',
+    crimsonDepth: '#700034',
+    warmSand: '#C3A582',
+    softPearl: '#F7F2F0',
+    obsidianBlack: '#1B1616',
+    chartColors: ['#2F4156', '#700034', '#C3A582', '#3d5470', '#8f0044', '#d4b89a']
+};
 
 // ============================================================================
 // Utility Functions
 // ============================================================================
 
 /**
- * Get theme-aware chart layout settings
+ * Get theme-aware chart layout settings with Navy colors
  */
 function getThemeAwareLayout() {
     const isDark = document.body.getAttribute('data-theme') === 'dark';
-    const textColor = isDark ? '#F1F6F4' : '#172B36';
-    const gridColor = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
+    const textColor = isDark ? NAVY_COLORS.softPearl : NAVY_COLORS.obsidianBlack;
+    const gridColor = isDark ? 'rgba(247, 242, 240, 0.1)' : 'rgba(27, 22, 22, 0.1)';
     
     return {
         paper_bgcolor: 'rgba(0,0,0,0)',
         plot_bgcolor: 'rgba(0,0,0,0)',
-        font: { color: textColor, family: 'Inter, sans-serif' },
+        font: { color: textColor, family: "'Inter', 'Segoe UI', sans-serif" },
         xaxis: { gridcolor: gridColor, tickfont: { color: textColor } },
-        yaxis: { gridcolor: gridColor, tickfont: { color: textColor } }
+        yaxis: { gridcolor: gridColor, tickfont: { color: textColor } },
+        colorway: NAVY_COLORS.chartColors
     };
 }
 
@@ -29,6 +44,7 @@ function getThemeAwareLayout() {
  */
 function applyThemeToLayout(layout) {
     const themeLayout = getThemeAwareLayout();
+    
     return {
         ...layout,
         ...themeLayout,
@@ -97,7 +113,9 @@ function loadFraudDistributionChart() {
                 const themedLayout = applyThemeToLayout(data.layout);
                 Plotly.newPlot('fraudDistributionChart', data.data, themedLayout, {
                     responsive: true,
-                    displayModeBar: true
+                    displayModeBar: true,
+                    displaylogo: false,
+                    modeBarButtonsToRemove: ['pan2d', 'lasso2d', 'select2d']
                 });
                 console.log('Fraud distribution chart rendered');
             } else {
@@ -122,7 +140,9 @@ function loadRiskDistributionChart() {
                 const themedLayout = applyThemeToLayout(data.layout);
                 Plotly.newPlot('riskDistributionChart', data.data, themedLayout, {
                     responsive: true,
-                    displayModeBar: true
+                    displayModeBar: true,
+                    displaylogo: false,
+                    modeBarButtonsToRemove: ['pan2d', 'lasso2d', 'select2d']
                 });
                 console.log('Risk distribution chart rendered');
             } else {
@@ -147,7 +167,9 @@ function loadRiskByLocationChart() {
                 const themedLayout = applyThemeToLayout(data.layout);
                 Plotly.newPlot('riskByLocationChart', data.data, themedLayout, {
                     responsive: true,
-                    displayModeBar: true
+                    displayModeBar: true,
+                    displaylogo: false,
+                    modeBarButtonsToRemove: ['pan2d', 'lasso2d', 'select2d']
                 });
                 console.log('Risk by location chart rendered');
             } else {
@@ -172,7 +194,9 @@ function loadTurnoverVsRiskChart() {
                 const themedLayout = applyThemeToLayout(data.layout);
                 Plotly.newPlot('turnoverVsRiskChart', data.data, themedLayout, {
                     responsive: true,
-                    displayModeBar: true
+                    displayModeBar: true,
+                    displaylogo: false,
+                    modeBarButtonsToRemove: ['pan2d', 'lasso2d', 'select2d']
                 });
                 console.log('Turnover vs risk chart rendered');
             } else {

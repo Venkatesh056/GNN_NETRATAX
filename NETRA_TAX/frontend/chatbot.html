@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Assistant - NETRA TAX</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/dashboard.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .chatbot-container {
+            display: grid;
+            grid-template-columns: 1fr 320px;
+            gap: 24px;
+            height: calc(100vh - 180px);
+            min-height: 500px;
+        }
+        
+        @media (max-width: 1024px) {
+            .chatbot-container {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+            .chat-sidebar {
+                display: none;
+            }
+        }
+        
+        .chat-main {
+            display: flex;
+            flex-direction: column;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+        
+        .chat-header {
+            background: linear-gradient(135deg, var(--primary-color, #0F4C5C), var(--secondary-color, #FFB703));
+            color: white;
+            padding: 20px 24px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        
+        .chat-header .avatar {
+            width: 48px;
+            height: 48px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+        
+        .chat-header-info h2 {
+            margin: 0;
+            font-size: 18px;
+        }
+        
+        .chat-header-info p {
+            margin: 4px 0 0;
+            opacity: 0.9;
+            font-size: 13px;
+        }
+        
+        .chat-header .status-dot {
+            width: 10px;
+            height: 10px;
+            background: #4ade80;
+            border-radius: 50%;
+            margin-left: auto;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            background: #f8fafc;
+        }
+        
+        .message {
+            display: flex;
+            gap: 12px;
+            max-width: 85%;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .message.user {
+            align-self: flex-end;
+            flex-direction: row-reverse;
+        }
+        
+        .message-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: 16px;
+        }
+        
+        .message.assistant .message-avatar {
+            background: linear-gradient(135deg, var(--primary-color, #0F4C5C), var(--secondary-color, #FFB703));
+            color: white;
+        }
+        
+        .message.user .message-avatar {
+            background: #e2e8f0;
+            color: #64748b;
+        }
+        
+        .message-content {
+            padding: 12px 16px;
+            border-radius: 16px;
+            line-height: 1.5;
+        }
+        
+        .message.assistant .message-content {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-bottom-left-radius: 4px;
+        }
+        
+        .message.user .message-content {
+            background: linear-gradient(135deg, var(--primary-color, #0F4C5C), #1a6b7d);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+        
+        .message-time {
+            font-size: 11px;
+            color: #94a3b8;
+            margin-top: 4px;
+            text-align: right;
+        }
+        
+        .message.user .message-time {
+            color: rgba(255,255,255,0.7);
+        }
+        
+        .typing-indicator {
+            display: none;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+        }
+        
+        .typing-indicator.show {
+            display: flex;
+        }
+        
+        .typing-dots {
+            display: flex;
+            gap: 4px;
+        }
+        
+        .typing-dots span {
+            width: 8px;
+            height: 8px;
+            background: #94a3b8;
+            border-radius: 50%;
+            animation: typing 1.4s infinite;
+        }
+        
+        .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+        
+        @keyframes typing {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-8px); }
+        }
+        
+        .chat-input-container {
+            padding: 16px 24px;
+            background: white;
+            border-top: 1px solid #e2e8f0;
+        }
+        
+        .chat-input-wrapper {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            background: #f1f5f9;
+            border-radius: 12px;
+            padding: 8px 16px;
+        }
+        
+        .chat-input-wrapper input {
+            flex: 1;
+            border: none;
+            background: transparent;
+            padding: 12px 0;
+            font-size: 15px;
+            outline: none;
+        }
+        
+        .chat-input-wrapper button {
+            width: 44px;
+            height: 44px;
+            border: none;
+            background: linear-gradient(135deg, var(--primary-color, #0F4C5C), #1a6b7d);
+            color: white;
+            border-radius: 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .chat-input-wrapper button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(15, 76, 92, 0.3);
+        }
+        
+        .chat-input-wrapper button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .chat-sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        
+        .sidebar-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+        
+        .sidebar-card h3 {
+            font-size: 14px;
+            color: var(--primary-color, #0F4C5C);
+            margin: 0 0 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .quick-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .quick-action-btn {
+            padding: 12px 16px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            background: #f8fafc;
+            cursor: pointer;
+            text-align: left;
+            font-size: 13px;
+            color: #334155;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .quick-action-btn:hover {
+            border-color: var(--primary-color, #0F4C5C);
+            background: white;
+            color: var(--primary-color, #0F4C5C);
+        }
+        
+        .quick-action-btn i {
+            color: var(--secondary-color, #FFB703);
+        }
+        
+        .stats-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        
+        .stat-item:last-child {
+            border-bottom: none;
+        }
+        
+        .stat-label {
+            color: #64748b;
+            font-size: 13px;
+        }
+        
+        .stat-value {
+            font-weight: 600;
+            color: var(--primary-color, #0F4C5C);
+        }
+        
+        .provider-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            background: #f1f5f9;
+            border-radius: 20px;
+            font-size: 12px;
+            color: #64748b;
+        }
+        
+        .provider-badge.active {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+        
+        /* Quick Action Enhanced Styles */
+        .quick-action-btn {
+            padding: 12px 16px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            background: #f8fafc;
+            cursor: pointer;
+            text-align: left;
+            font-size: 13px;
+            color: #334155;
+            transition: all 0.2s;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            width: 100%;
+        }
+        
+        .quick-action-btn:hover {
+            border-color: var(--primary-color, #0F4C5C);
+            background: white;
+            color: var(--primary-color, #0F4C5C);
+            transform: translateX(4px);
+        }
+        
+        .quick-action-btn i {
+            color: var(--secondary-color, #FFB703);
+            margin-top: 2px;
+            font-size: 14px;
+        }
+        
+        .action-content {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        
+        .action-title {
+            font-weight: 500;
+        }
+        
+        .action-summary {
+            font-size: 11px;
+            color: #64748b;
+        }
+        
+        .loading-actions {
+            text-align: center;
+            padding: 20px;
+            color: #64748b;
+        }
+        
+        .error-text {
+            color: #ef4444;
+            font-size: 12px;
+            text-align: center;
+        }
+        
+        .no-data {
+            color: #94a3b8;
+            font-size: 12px;
+            text-align: center;
+        }
+        
+        /* Live Insights */
+        .live-insights {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        
+        .insight-card {
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .insight-card.fraud-alert {
+            background: linear-gradient(135deg, #fef2f2, #fee2e2);
+            border: 1px solid #fecaca;
+        }
+        
+        .insight-card.risk-score {
+            background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+            border: 1px solid #bbf7d0;
+        }
+        
+        .insight-value {
+            display: block;
+            font-size: 24px;
+            font-weight: 700;
+        }
+        
+        .insight-card.fraud-alert .insight-value {
+            color: #dc2626;
+        }
+        
+        .insight-card.risk-score .insight-value {
+            color: #16a34a;
+        }
+        
+        .insight-label {
+            font-size: 11px;
+            color: #64748b;
+            margin-top: 4px;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="navbar-container">
+            <div class="navbar-brand">
+                <h1>🚨 NETRA TAX</h1>
+                <p>AI-Powered Tax Fraud Detection</p>
+            </div>
+            <ul class="navbar-menu">
+                <li><a href="/index.html" class="nav-link">Dashboard</a></li>
+                <li><a href="/upload.html" class="nav-link">Upload</a></li>
+                <li><a href="/company-explorer.html" class="nav-link">Companies</a></li>
+                <li><a href="/invoice-explorer.html" class="nav-link">Invoices</a></li>
+                <li><a href="/graph-visualizer.html" class="nav-link">Network Graph</a></li>
+                <li><a href="/chatbot.html" class="nav-link active">AI Assistant</a></li>
+                <li><a href="/reports.html" class="nav-link">Reports</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <div class="dashboard-container">
+        <div class="chatbot-container">
+            <!-- Main Chat Area -->
+            <div class="chat-main">
+                <div class="chat-header">
+                    <div class="avatar">🤖</div>
+                    <div class="chat-header-info">
+                        <h2>NETRA TAX AI Assistant</h2>
+                        <p>Powered by Groq LLM + GNN Analytics</p>
+                    </div>
+                    <div class="status-dot" title="Online"></div>
+                </div>
+                
+                <div class="chat-messages" id="chatMessages">
+                    <!-- Welcome message -->
+                    <div class="message assistant">
+                        <div class="message-avatar">🤖</div>
+                        <div class="message-bubble">
+                            <div class="message-content">
+                                <p>👋 Hello! I'm your NETRA TAX AI Assistant.</p>
+                                <p>I can help you with:</p>
+                                <ul style="margin: 8px 0; padding-left: 20px;">
+                                    <li>Analyzing fraud patterns and risk scores</li>
+                                    <li>Investigating suspicious companies</li>
+                                    <li>Understanding ITC fraud indicators</li>
+                                    <li>Exploring transaction networks</li>
+                                </ul>
+                                <p>Ask me anything about the GST fraud data!</p>
+                            </div>
+                            <div class="message-time">Just now</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Typing indicator -->
+                <div class="typing-indicator" id="typingIndicator">
+                    <div class="message-avatar" style="background: linear-gradient(135deg, var(--primary-color, #0F4C5C), var(--secondary-color, #FFB703)); color: white; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">🤖</div>
+                    <div class="typing-dots">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                    <span style="color: #64748b; font-size: 13px;">AI is thinking...</span>
+                </div>
+                
+                <div class="chat-input-container">
+                    <div class="chat-input-wrapper">
+                        <input type="text" id="chatInput" placeholder="Ask about companies, fraud patterns, ITC claims..." autocomplete="off">
+                        <button id="sendBtn" onclick="sendMessage()">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Sidebar -->
+            <div class="chat-sidebar">
+                <!-- Quick Actions -->
+                <div class="sidebar-card">
+                    <h3><i class="fas fa-bolt"></i> Quick Actions</h3>
+                    <div class="quick-actions" id="quickActionsContainer">
+                        <!-- Actions loaded dynamically from backend -->
+                        <div class="loading-actions">
+                            <i class="fas fa-spinner fa-spin"></i> Loading actions...
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Quick Stats Cards -->
+                <div class="sidebar-card">
+                    <h3><i class="fas fa-tachometer-alt"></i> Live Insights</h3>
+                    <div id="liveInsights" class="live-insights">
+                        <div class="insight-card fraud-alert" id="insightFraud">
+                            <span class="insight-value">-</span>
+                            <span class="insight-label">Fraud Alerts</span>
+                        </div>
+                        <div class="insight-card risk-score" id="insightRisk">
+                            <span class="insight-value">-</span>
+                            <span class="insight-label">Avg Risk Score</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- System Stats -->
+                <div class="sidebar-card">
+                    <h3><i class="fas fa-database"></i> Current Data</h3>
+                    <div class="stats-list" id="systemStats">
+                        <div class="stat-item">
+                            <span class="stat-label">Total Companies</span>
+                            <span class="stat-value" id="statCompanies">-</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Total Invoices</span>
+                            <span class="stat-value" id="statInvoices">-</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">High Risk</span>
+                            <span class="stat-value" id="statHighRisk" style="color: #ef4444;">-</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Model Accuracy</span>
+                            <span class="stat-value" id="statAccuracy" style="color: #16a34a;">-</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- AI Provider -->
+                <div class="sidebar-card">
+                    <h3><i class="fas fa-robot"></i> AI Provider</h3>
+                    <div class="provider-badge active" id="providerBadge">
+                        <i class="fas fa-check-circle"></i>
+                        <span id="providerName">Grok AI (xAI)</span>
+                    </div>
+                    <p style="font-size: 12px; color: #64748b; margin-top: 12px;">
+                        Using xAI's Grok model with real-time GNN fraud data context.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script>
+        const chatMessages = document.getElementById('chatMessages');
+        const chatInput = document.getElementById('chatInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const typingIndicator = document.getElementById('typingIndicator');
+        
+        // Chat history for context
+        let chatHistory = [];
+        let quickActionsData = [];
+        
+        // Load stats and quick actions on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            loadStats();
+            loadQuickActions();
+        });
+        
+        async function loadQuickActions() {
+            const container = document.getElementById('quickActionsContainer');
+            try {
+                const response = await fetch(`${api.baseURL}/api/quick-actions`);
+                if (response.ok) {
+                    const data = await response.json();
+                    quickActionsData = data.actions || [];
+                    renderQuickActions(quickActionsData);
+                    updateLiveInsights(quickActionsData);
+                } else {
+                    container.innerHTML = '<p class="error-text">Failed to load actions</p>';
+                }
+            } catch (e) {
+                console.error('Failed to load quick actions:', e);
+                container.innerHTML = '<p class="error-text">Could not connect to server</p>';
+            }
+        }
+        
+        function renderQuickActions(actions) {
+            const container = document.getElementById('quickActionsContainer');
+            if (!actions || actions.length === 0) {
+                container.innerHTML = '<p class="no-data">No actions available</p>';
+                return;
+            }
+            
+            container.innerHTML = actions.map(action => `
+                <button class="quick-action-btn" onclick="executeQuickAction('${action.id}', '${action.query.replace(/'/g, "\\'")}')">
+                    <i class="${action.icon}"></i>
+                    <div class="action-content">
+                        <span class="action-title">${action.title}</span>
+                        <span class="action-summary">${action.summary || ''}</span>
+                    </div>
+                </button>
+            `).join('');
+        }
+        
+        function updateLiveInsights(actions) {
+            // Extract insights from quick actions data
+            const fraudAction = actions.find(a => a.id === 'daily_summary');
+            const modelAction = actions.find(a => a.id === 'model_performance');
+            
+            if (fraudAction && fraudAction.data) {
+                document.querySelector('#insightFraud .insight-value').textContent = 
+                    fraudAction.data.fraud_companies || fraudAction.data.frauds || '0';
+            }
+            
+            if (modelAction && modelAction.data) {
+                document.querySelector('#insightRisk .insight-value').textContent = 
+                    `${(modelAction.data.accuracy * 100).toFixed(0)}%`;
+            }
+        }
+        
+        async function executeQuickAction(actionId, query) {
+            // First add the question to chat
+            chatInput.value = query;
+            
+            // Fetch detailed data for this action
+            try {
+                const response = await fetch(`${api.baseURL}/api/quick-action/${actionId}`);
+                if (response.ok) {
+                    const actionData = await response.json();
+                    // Store context for the AI
+                    const contextMessage = `[Context: ${JSON.stringify(actionData.data).substring(0, 500)}]`;
+                    console.log('Quick action context:', contextMessage);
+                }
+            } catch (e) {
+                console.error('Failed to fetch action data:', e);
+            }
+            
+            // Send the message
+            sendMessage();
+        }
+        
+        async function loadStats() {
+            try {
+                const response = await fetch(`${api.baseURL}/api/statistics`);
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('statCompanies').textContent = (data.total_companies || 0).toLocaleString();
+                    document.getElementById('statInvoices').textContent = (data.total_invoices || 0).toLocaleString();
+                    document.getElementById('statHighRisk').textContent = (data.high_risk_companies || 0).toLocaleString();
+                    document.getElementById('statAccuracy').textContent = data.model_accuracy ? `${(data.model_accuracy * 100).toFixed(1)}%` : 'N/A';
+                }
+            } catch (e) {
+                console.error('Failed to load stats:', e);
+            }
+        }
+        
+        function formatTime() {
+            return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+        
+        function addMessage(content, role) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            
+            const avatar = role === 'user' ? '👤' : '🤖';
+            
+            messageDiv.innerHTML = `
+                <div class="message-avatar">${avatar}</div>
+                <div class="message-bubble">
+                    <div class="message-content">${formatResponse(content)}</div>
+                    <div class="message-time">${formatTime()}</div>
+                </div>
+            `;
+            
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        function formatResponse(text) {
+            // Convert markdown-like formatting
+            text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            text = text.replace(/\*(.*?)\*/g, '<em>$1</em>');
+            text = text.replace(/`(.*?)`/g, '<code style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px;">$1</code>');
+            
+            // Convert bullet points
+            text = text.replace(/^- (.+)$/gm, '<li>$1</li>');
+            text = text.replace(/(<li>.*<\/li>)/s, '<ul style="margin: 8px 0; padding-left: 20px;">$1</ul>');
+            
+            // Convert numbered lists
+            text = text.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
+            
+            // Convert newlines to paragraphs
+            text = text.split('\n\n').map(p => p.trim() ? `<p style="margin: 8px 0;">${p}</p>` : '').join('');
+            
+            return text || text;
+        }
+        
+        function showTyping() {
+            typingIndicator.classList.add('show');
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        function hideTyping() {
+            typingIndicator.classList.remove('show');
+        }
+        
+        async function sendMessage() {
+            const message = chatInput.value.trim();
+            if (!message) return;
+            
+            // Clear input
+            chatInput.value = '';
+            sendBtn.disabled = true;
+            
+            // Add user message
+            addMessage(message, 'user');
+            chatHistory.push({ role: 'user', content: message });
+            
+            // Show typing
+            showTyping();
+            
+            try {
+                const response = await fetch(`${api.baseURL}/api/chatbot`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        history: chatHistory.slice(-10) // Last 10 messages for context
+                    })
+                });
+                
+                hideTyping();
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    addMessage(data.response, 'assistant');
+                    chatHistory.push({ role: 'assistant', content: data.response });
+                    
+                    // Update provider badge
+                    if (data.provider) {
+                        updateProviderBadge(data.provider);
+                    }
+                } else {
+                    const error = await response.json();
+                    addMessage(`Sorry, I encountered an error: ${error.error || 'Unknown error'}. Please try again.`, 'assistant');
+                }
+            } catch (error) {
+                hideTyping();
+                console.error('Chat error:', error);
+                addMessage('Sorry, I\'m having trouble connecting. Please check if the server is running and try again.', 'assistant');
+            }
+            
+            sendBtn.disabled = false;
+            chatInput.focus();
+        }
+        
+        function askQuestion(question) {
+            chatInput.value = question;
+            sendMessage();
+        }
+        
+        function updateProviderBadge(provider) {
+            const badge = document.getElementById('providerBadge');
+            const name = document.getElementById('providerName');
+            
+            if (provider === 'grok') {
+                name.textContent = 'Grok AI (xAI)';
+                badge.style.background = '#1d4ed8';
+                badge.style.color = 'white';
+            } else if (provider === 'groq') {
+                name.textContent = 'Groq LLM (Llama)';
+                badge.style.background = '#dcfce7';
+                badge.style.color = '#16a34a';
+            }
+        }
+        
+        // Enter key to send
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+        
+        // Focus input on load
+        chatInput.focus();
+    </script>
+</body>
+</html>

@@ -1,0 +1,916 @@
+/* ============================================================================
+   NETRA TAX - Premium UI Effects
+   Glassmorphism, Micro-interactions, and Visual Enhancements
+   Uses existing color palette only
+   ============================================================================ */
+
+/* ============================================================================
+   GLASSMORPHISM EFFECTS
+   ============================================================================ */
+
+.glass {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.glass-dark {
+    background: rgba(47, 65, 86, 0.9);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.glass-subtle {
+    background: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+/* Glassmorphism for cards */
+.glass-card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow:
+        0 4px 24px rgba(0, 0, 0, 0.06),
+        0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+/* Dark mode glass */
+[data-theme="dark"] .glass {
+    background: rgba(26, 35, 50, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .glass-card {
+    background: rgba(28, 37, 65, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* ============================================================================
+   ENHANCED CARD EFFECTS
+   ============================================================================ */
+
+/* Lifted Card Effect */
+.card-lift {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card-lift:hover {
+    transform: translateY(-6px);
+    box-shadow:
+        0 20px 40px rgba(0, 0, 0, 0.1),
+        0 8px 16px rgba(0, 0, 0, 0.06);
+}
+
+/* Subtle Scale Effect */
+.card-scale {
+    transition: transform 0.25s ease;
+}
+
+.card-scale:hover {
+    transform: scale(1.02);
+}
+
+/* Border Highlight Effect */
+.card-border-highlight {
+    position: relative;
+    transition: border-color 0.3s ease;
+}
+
+.card-border-highlight::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    border: 2px solid transparent;
+    transition: border-color 0.3s ease;
+    pointer-events: none;
+}
+
+.card-border-highlight:hover::before {
+    border-color: var(--crimson);
+}
+
+/* Card with accent line */
+.card-accent-top {
+    position: relative;
+    overflow: hidden;
+}
+
+.card-accent-top::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--crimson);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.3s ease;
+}
+
+.card-accent-top:hover::before {
+    transform: scaleX(1);
+}
+
+/* ============================================================================
+   BUTTON ENHANCEMENTS
+   ============================================================================ */
+
+/* Ripple Effect Container */
+.btn-ripple {
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-ripple::after {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+    background-image: radial-gradient(circle, rgba(255, 255, 255, 0.3) 10%, transparent 10%);
+    background-repeat: no-repeat;
+    background-position: 50%;
+    transform: scale(10, 10);
+    opacity: 0;
+    transition: transform 0.5s, opacity 0.5s;
+}
+
+.btn-ripple:active::after {
+    transform: scale(0, 0);
+    opacity: 0.3;
+    transition: 0s;
+}
+
+/* Button Shine Effect */
+.btn-shine {
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-shine::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg,
+            transparent,
+            rgba(255, 255, 255, 0.2),
+            transparent);
+    transition: left 0.5s ease;
+}
+
+.btn-shine:hover::before {
+    left: 100%;
+}
+
+/* Elevated Button */
+.btn-elevated {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transition: all 0.25s ease;
+}
+
+.btn-elevated:hover {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    transform: translateY(-2px);
+}
+
+.btn-elevated:active {
+    transform: translateY(0);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Icon Button Animation */
+.btn-icon-animate i,
+.btn-icon-animate svg {
+    transition: transform 0.25s ease;
+}
+
+.btn-icon-animate:hover i,
+.btn-icon-animate:hover svg {
+    transform: scale(1.15);
+}
+
+/* ============================================================================
+   INPUT FIELD ENHANCEMENTS
+   ============================================================================ */
+
+/* Focus Ring Animation */
+.input-focus-ring {
+    position: relative;
+}
+
+.input-focus-ring::after {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: calc(var(--radius-md) + 3px);
+    border: 2px solid var(--crimson);
+    opacity: 0;
+    transform: scale(1.02);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    pointer-events: none;
+}
+
+.input-focus-ring:focus-within::after {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* Floating Label Effect */
+.input-floating {
+    position: relative;
+    padding-top: 1.5rem;
+}
+
+.input-floating label {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    transition: all 0.2s ease;
+    pointer-events: none;
+    color: var(--text-light);
+    font-size: 14px;
+}
+
+.input-floating input:focus~label,
+.input-floating input:not(:placeholder-shown)~label {
+    top: 0.5rem;
+    transform: translateY(0);
+    font-size: 11px;
+    color: var(--crimson);
+}
+
+/* Input with Icon Animation */
+.input-icon-animate .input-icon {
+    transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.input-icon-animate:focus-within .input-icon {
+    color: var(--crimson);
+    transform: translateY(-50%) scale(1.1);
+}
+
+/* Underline Input Animation */
+.input-underline {
+    position: relative;
+    border: none;
+    border-bottom: 2px solid var(--pearl-dark);
+    border-radius: 0;
+    background: transparent;
+    transition: border-color 0.3s ease;
+}
+
+.input-underline::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 0;
+    height: 2px;
+    background: var(--crimson);
+    transition: width 0.3s ease;
+}
+
+.input-underline:focus::after {
+    width: 100%;
+}
+
+/* ============================================================================
+   TABLE ENHANCEMENTS
+   ============================================================================ */
+
+/* Row Hover Slide */
+.table-row-slide tbody tr {
+    position: relative;
+    transition: background-color 0.2s ease;
+}
+
+.table-row-slide tbody tr::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: var(--crimson);
+    transform: scaleY(0);
+    transition: transform 0.2s ease;
+}
+
+.table-row-slide tbody tr:hover::before {
+    transform: scaleY(1);
+}
+
+/* Alternating Row Animation */
+.table-animate-rows tbody tr {
+    opacity: 0;
+    animation: fadeInUp 0.4s ease forwards;
+}
+
+.table-animate-rows tbody tr:nth-child(1) {
+    animation-delay: 0.05s;
+}
+
+.table-animate-rows tbody tr:nth-child(2) {
+    animation-delay: 0.1s;
+}
+
+.table-animate-rows tbody tr:nth-child(3) {
+    animation-delay: 0.15s;
+}
+
+.table-animate-rows tbody tr:nth-child(4) {
+    animation-delay: 0.2s;
+}
+
+.table-animate-rows tbody tr:nth-child(5) {
+    animation-delay: 0.25s;
+}
+
+.table-animate-rows tbody tr:nth-child(6) {
+    animation-delay: 0.3s;
+}
+
+.table-animate-rows tbody tr:nth-child(7) {
+    animation-delay: 0.35s;
+}
+
+.table-animate-rows tbody tr:nth-child(8) {
+    animation-delay: 0.4s;
+}
+
+.table-animate-rows tbody tr:nth-child(9) {
+    animation-delay: 0.45s;
+}
+
+.table-animate-rows tbody tr:nth-child(10) {
+    animation-delay: 0.5s;
+}
+
+/* Expandable Row */
+.table-expandable tbody tr.expanded {
+    background: var(--pearl);
+}
+
+.table-expandable .row-details {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+
+.table-expandable tbody tr.expanded+.row-details {
+    max-height: 200px;
+}
+
+/* ============================================================================
+   SKELETON LOADING STATES
+   ============================================================================ */
+
+.skeleton {
+    position: relative;
+    overflow: hidden;
+    background: var(--pearl-dark);
+    border-radius: var(--radius-md);
+}
+
+.skeleton::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg,
+            transparent,
+            rgba(255, 255, 255, 0.4),
+            transparent);
+    animation: shimmer 1.5s infinite;
+}
+
+.skeleton-text {
+    height: 1em;
+    border-radius: 4px;
+}
+
+.skeleton-text.short {
+    width: 40%;
+}
+
+.skeleton-text.medium {
+    width: 70%;
+}
+
+.skeleton-text.full {
+    width: 100%;
+}
+
+.skeleton-circle {
+    border-radius: 50%;
+}
+
+.skeleton-card {
+    padding: 1rem;
+}
+
+/* Dark mode skeleton */
+[data-theme="dark"] .skeleton {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="dark"] .skeleton::after {
+    background: linear-gradient(90deg,
+            transparent,
+            rgba(255, 255, 255, 0.08),
+            transparent);
+}
+
+/* ============================================================================
+   NOTIFICATION/BADGE EFFECTS
+   ============================================================================ */
+
+/* Pulsing Badge */
+.badge-pulse {
+    position: relative;
+}
+
+.badge-pulse::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: inherit;
+    animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+    z-index: -1;
+}
+
+/* Notification Dot */
+.notification-dot {
+    position: relative;
+}
+
+.notification-dot::after {
+    content: '';
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    width: 10px;
+    height: 10px;
+    background: var(--status-red);
+    border-radius: 50%;
+    border: 2px solid var(--white);
+    animation: pulse 2s infinite;
+}
+
+/* Counter Badge */
+.badge-counter {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.5rem;
+    height: 1.5rem;
+    padding: 0 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: var(--crimson);
+    color: white;
+    border-radius: 9999px;
+    transform: scale(0);
+    animation: bounceIn 0.4s ease forwards;
+}
+
+/* ============================================================================
+   TOOLTIP ENHANCEMENTS
+   ============================================================================ */
+
+.tooltip-animated {
+    position: relative;
+}
+
+.tooltip-animated::before {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%) translateY(10px);
+    padding: 0.5rem 0.75rem;
+    background: var(--navy-dark);
+    color: white;
+    font-size: 12px;
+    border-radius: var(--radius-sm);
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    z-index: 1000;
+    pointer-events: none;
+}
+
+.tooltip-animated::after {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: var(--navy-dark);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease;
+}
+
+.tooltip-animated:hover::before {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(-5px);
+}
+
+.tooltip-animated:hover::after {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* ============================================================================
+   MODAL ENHANCEMENTS
+   ============================================================================ */
+
+/* Modal Backdrop */
+.modal-backdrop-blur {
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+/* Modal Entrance */
+.modal-animate-in .modal-content {
+    animation: zoomIn 0.3s ease-out forwards;
+}
+
+/* Modal Exit */
+.modal-animate-out .modal-content {
+    animation: zoomOut 0.2s ease-in forwards;
+}
+
+/* Slide Modal */
+.modal-slide .modal-content {
+    animation: slideInUp 0.3s ease-out forwards;
+}
+
+/* ============================================================================
+   NAVIGATION ENHANCEMENTS
+   ============================================================================ */
+
+/* Nav Link Underline Animation */
+.nav-link-animated {
+    position: relative;
+}
+
+.nav-link-animated::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    width: 0;
+    height: 2px;
+    background: var(--crimson);
+    transition: width 0.3s ease, left 0.3s ease;
+}
+
+.nav-link-animated:hover::after,
+.nav-link-animated.active::after {
+    width: 100%;
+    left: 0;
+}
+
+/* Dropdown Animation */
+.dropdown-animated .dropdown-menu {
+    opacity: 0;
+    transform: translateY(-10px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    pointer-events: none;
+}
+
+.dropdown-animated:hover .dropdown-menu,
+.dropdown-animated.open .dropdown-menu {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+/* Hamburger Menu Animation */
+.hamburger {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    cursor: pointer;
+    padding: 8px;
+}
+
+.hamburger span {
+    display: block;
+    width: 24px;
+    height: 2px;
+    background: var(--text-dark);
+    transition: all 0.3s ease;
+}
+
+.hamburger.active span:nth-child(1) {
+    transform: rotate(45deg) translate(5px, 5px);
+}
+
+.hamburger.active span:nth-child(2) {
+    opacity: 0;
+}
+
+.hamburger.active span:nth-child(3) {
+    transform: rotate(-45deg) translate(5px, -5px);
+}
+
+/* ============================================================================
+   SCROLL ANIMATIONS
+   ============================================================================ */
+
+/* Scroll Progress Bar */
+.scroll-progress {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 3px;
+    background: var(--crimson);
+    z-index: 9999;
+    transition: width 0.1s ease;
+}
+
+/* Scroll to Top Button */
+.scroll-top-btn {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: var(--navy);
+    color: white;
+    border: none;
+    cursor: pointer;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(20px);
+    transition: all 0.3s ease;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.scroll-top-btn.visible {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.scroll-top-btn:hover {
+    background: var(--crimson);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+/* ============================================================================
+   CHART LOADING STATES
+   ============================================================================ */
+
+.chart-loading {
+    position: relative;
+    min-height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.chart-loading::before {
+    content: '';
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--pearl-dark);
+    border-top-color: var(--crimson);
+    border-radius: 50%;
+    animation: rotate 0.8s linear infinite;
+}
+
+.chart-loading-text {
+    position: absolute;
+    bottom: 20%;
+    color: var(--text-light);
+    font-size: 13px;
+}
+
+/* ============================================================================
+   MICRO-INTERACTIONS
+   ============================================================================ */
+
+/* Icon Hover Rotate */
+.icon-hover-rotate {
+    transition: transform 0.3s ease;
+}
+
+.icon-hover-rotate:hover {
+    transform: rotate(15deg);
+}
+
+/* Icon Hover Bounce */
+.icon-hover-bounce:hover {
+    animation: bounce 0.5s ease;
+}
+
+/* Link Hover Slide */
+.link-hover-slide {
+    position: relative;
+    display: inline-block;
+}
+
+.link-hover-slide::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 0;
+    height: 1px;
+    background: currentColor;
+    transition: width 0.3s ease;
+}
+
+.link-hover-slide:hover::after {
+    width: 100%;
+}
+
+/* Number Counter Animation Target */
+.counter-animate {
+    display: inline-block;
+    transition: transform 0.2s ease;
+}
+
+.counter-animate.counting {
+    animation: countUp 0.3s ease-out;
+}
+
+/* Status Indicator Pulse */
+.status-online {
+    position: relative;
+}
+
+.status-online::after {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: inherit;
+    animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+    background: inherit;
+    opacity: 0.75;
+}
+
+/* ============================================================================
+   STAGGERED ANIMATIONS FOR LISTS/GRIDS
+   ============================================================================ */
+
+.stagger-children>* {
+    opacity: 0;
+    animation: fadeInUp 0.5s ease forwards;
+}
+
+.stagger-children>*:nth-child(1) {
+    animation-delay: 0.1s;
+}
+
+.stagger-children>*:nth-child(2) {
+    animation-delay: 0.15s;
+}
+
+.stagger-children>*:nth-child(3) {
+    animation-delay: 0.2s;
+}
+
+.stagger-children>*:nth-child(4) {
+    animation-delay: 0.25s;
+}
+
+.stagger-children>*:nth-child(5) {
+    animation-delay: 0.3s;
+}
+
+.stagger-children>*:nth-child(6) {
+    animation-delay: 0.35s;
+}
+
+.stagger-children>*:nth-child(7) {
+    animation-delay: 0.4s;
+}
+
+.stagger-children>*:nth-child(8) {
+    animation-delay: 0.45s;
+}
+
+/* Grid stagger (2D) */
+.stagger-grid>* {
+    opacity: 0;
+    animation: fadeInScale 0.4s ease forwards;
+}
+
+.stagger-grid>*:nth-child(1) {
+    animation-delay: 0.05s;
+}
+
+.stagger-grid>*:nth-child(2) {
+    animation-delay: 0.1s;
+}
+
+.stagger-grid>*:nth-child(3) {
+    animation-delay: 0.15s;
+}
+
+.stagger-grid>*:nth-child(4) {
+    animation-delay: 0.2s;
+}
+
+.stagger-grid>*:nth-child(5) {
+    animation-delay: 0.25s;
+}
+
+.stagger-grid>*:nth-child(6) {
+    animation-delay: 0.3s;
+}
+
+.stagger-grid>*:nth-child(7) {
+    animation-delay: 0.35s;
+}
+
+.stagger-grid>*:nth-child(8) {
+    animation-delay: 0.4s;
+}
+
+/* ============================================================================
+   FOCUS VISIBLE ENHANCEMENTS
+   ============================================================================ */
+
+:focus-visible {
+    outline: 2px solid var(--crimson);
+    outline-offset: 2px;
+}
+
+.focus-ring-inset:focus-visible {
+    outline-offset: -2px;
+}
+
+/* ============================================================================
+   TRANSITION UTILITIES
+   ============================================================================ */
+
+.transition-all {
+    transition-property: all;
+    transition-duration: 0.3s;
+    transition-timing-function: ease;
+}
+
+.transition-transform {
+    transition-property: transform;
+    transition-duration: 0.3s;
+    transition-timing-function: ease;
+}
+
+.transition-opacity {
+    transition-property: opacity;
+    transition-duration: 0.3s;
+    transition-timing-function: ease;
+}
+
+.transition-colors {
+    transition-property: color, background-color, border-color;
+    transition-duration: 0.2s;
+    transition-timing-function: ease;
+}
+
+.transition-shadow {
+    transition-property: box-shadow;
+    transition-duration: 0.3s;
+    transition-timing-function: ease;
+}
+
+.hover-lift {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.hover-lift:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
+}

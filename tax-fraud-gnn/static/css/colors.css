@@ -1,0 +1,212 @@
+/* ============================================================================
+   Color System - Premium Color Palette
+   Crimson Depth (#710014), Warm Sand (#B38F5B), Soft Pearl (#F2F1ED), 
+   Obsidian Black (#161616), Navy (#2F4156)
+   ============================================================================ */
+
+:root {
+   /* ========================================================================
+     Primary Palette Colors
+     ======================================================================== */
+
+   /* Navy - Primary Color */
+   --navy: #2F4156;
+   --navy-light: #3D5368;
+   --navy-lighter: #4B6579;
+   --navy-dark: #1F2B3A;
+   --navy-darker: #151E28;
+   --navy-hover: #3A4E65;
+
+   /* Crimson Depth - Danger/High Risk/Accent */
+   --crimson-depth: #710014;
+   --crimson-light: #8F1A2E;
+   --crimson-lighter: #A83348;
+   --crimson-dark: #5A0010;
+   --crimson-darker: #42000C;
+
+   /* Warm Sand - Warning/Medium Risk */
+   --warm-sand: #B38F5B;
+   --warm-sand-light: #C9A876;
+   --warm-sand-lighter: #DFC191;
+   --warm-sand-dark: #9A7A4D;
+   --warm-sand-darker: #826540;
+
+   /* Soft Pearl - Light Backgrounds */
+   --soft-pearl: #F2F1ED;
+   --soft-pearl-dark: #E8E7E3;
+   --soft-pearl-darker: #DEDDD9;
+   --soft-pearl-light: #F9F8F6;
+
+   /* Obsidian Black - Dark Elements */
+   --obsidian-black: #161616;
+   --obsidian-light: #252525;
+   --obsidian-lighter: #343434;
+
+   /* ========================================================================
+     Legacy Variable Mappings (for backward compatibility)
+     ======================================================================== */
+
+   --arctic-powder: var(--soft-pearl);
+   --mystic-mint: var(--soft-pearl-dark);
+   --nocturnal-expedition: var(--navy);
+   --oceanic-noir: var(--navy-dark);
+
+   /* ========================================================================
+     Semantic Color Mappings
+     ======================================================================== */
+
+   --primary: var(--navy);
+   --primary-light: var(--navy-light);
+   --primary-dark: var(--navy-dark);
+
+   --danger: var(--crimson-depth);
+   --danger-light: var(--crimson-light);
+   --danger-dark: var(--crimson-dark);
+
+   --warning: var(--warm-sand);
+   --warning-light: var(--warm-sand-light);
+   --warning-dark: var(--warm-sand-dark);
+
+   --success: #2D8B57;
+   --success-light: #3DA869;
+   --success-dark: #23704A;
+
+   --info: var(--navy-light);
+   --info-light: var(--navy-lighter);
+   --info-dark: var(--navy);
+
+   /* ========================================================================
+     Gradient Definitions
+     ======================================================================== */
+
+   --gradient-primary: linear-gradient(135deg, var(--navy) 0%, var(--navy-dark) 100%);
+   --gradient-primary-reverse: linear-gradient(135deg, var(--navy-dark) 0%, var(--navy) 100%);
+
+   --gradient-danger: linear-gradient(135deg, var(--crimson-depth) 0%, var(--crimson-dark) 100%);
+   --gradient-danger-reverse: linear-gradient(135deg, var(--crimson-dark) 0%, var(--crimson-depth) 100%);
+
+   --gradient-warning: linear-gradient(135deg, var(--warm-sand) 0%, var(--warm-sand-dark) 100%);
+   --gradient-warning-reverse: linear-gradient(135deg, var(--warm-sand-dark) 0%, var(--warm-sand) 100%);
+
+   --gradient-hero: linear-gradient(135deg, var(--navy-dark) 0%, var(--crimson-dark) 50%, var(--navy) 100%);
+   --gradient-hero-reverse: linear-gradient(135deg, var(--crimson-depth) 0%, var(--navy) 100%);
+
+   --gradient-accent: linear-gradient(135deg, var(--warm-sand) 0%, var(--crimson-depth) 100%);
+   --gradient-dark: linear-gradient(135deg, var(--obsidian-black) 0%, var(--obsidian-light) 100%);
+
+   /* Animated Gradients */
+   --gradient-animated-primary: linear-gradient(135deg,
+         var(--navy) 0%,
+         var(--navy-light) 25%,
+         var(--crimson-depth) 50%,
+         var(--navy-light) 75%,
+         var(--navy) 100%);
+
+   /* ========================================================================
+     Shadow Definitions
+     ======================================================================== */
+
+   --shadow-sm: 0 2px 4px rgba(22, 22, 22, 0.08);
+   --shadow-md: 0 4px 12px rgba(22, 22, 22, 0.12);
+   --shadow-lg: 0 8px 24px rgba(22, 22, 22, 0.16);
+   --shadow-xl: 0 12px 40px rgba(22, 22, 22, 0.2);
+
+   --shadow-glow-crimson: 0 0 20px rgba(113, 0, 20, 0.3);
+   --shadow-glow-navy: 0 0 20px rgba(47, 65, 86, 0.3);
+   --shadow-glow-sand: 0 0 20px rgba(179, 143, 91, 0.3);
+
+   --shadow-inner: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+
+   /* ========================================================================
+     Background Colors
+     ======================================================================== */
+
+   --bg-primary: var(--soft-pearl);
+   --bg-secondary: var(--soft-pearl-dark);
+   --bg-tertiary: var(--soft-pearl-darker);
+   --bg-card: #FFFFFF;
+   --bg-navbar: var(--navy);
+   --bg-modal: rgba(242, 241, 237, 0.98);
+
+   /* ========================================================================
+     Text Colors
+     ======================================================================== */
+
+   --text-primary: var(--obsidian-black);
+   --text-secondary: var(--navy);
+   --text-tertiary: var(--navy-light);
+   --text-inverse: var(--soft-pearl);
+   --text-muted: #7A7A7A;
+
+   /* ========================================================================
+     Border Colors
+     ======================================================================== */
+
+   --border-color: rgba(47, 65, 86, 0.15);
+   --border-color-light: rgba(47, 65, 86, 0.08);
+   --border-color-dark: rgba(47, 65, 86, 0.25);
+
+   --overlay: rgba(22, 22, 22, 0.5);
+
+   /* ========================================================================
+     Spacing System
+     ======================================================================== */
+
+   --spacing-xs: 4px;
+   --spacing-sm: 8px;
+   --spacing-md: 16px;
+   --spacing-lg: 24px;
+   --spacing-xl: 32px;
+   --spacing-2xl: 48px;
+   --spacing-3xl: 64px;
+
+   /* ========================================================================
+     Border Radius System
+     ======================================================================== */
+
+   --radius-sm: 6px;
+   --radius-md: 10px;
+   --radius-lg: 14px;
+   --radius-xl: 20px;
+   --radius-2xl: 28px;
+   --radius-full: 9999px;
+
+   /* ========================================================================
+     Transition Timing
+     ======================================================================== */
+
+   --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+   --transition-normal: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+   --transition-slow: 500ms cubic-bezier(0.4, 0, 0.2, 1);
+
+   --easing-standard: cubic-bezier(0.4, 0.0, 0.2, 1);
+   --easing-decelerate: cubic-bezier(0.0, 0.0, 0.2, 1);
+   --easing-accelerate: cubic-bezier(0.4, 0.0, 1, 1);
+   --easing-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+/* ============================================================================
+   Dark Theme Override
+   ============================================================================ */
+
+[data-theme="dark"] {
+   --bg-primary: var(--obsidian-black);
+   --bg-secondary: var(--obsidian-light);
+   --bg-tertiary: var(--obsidian-lighter);
+   --bg-card: var(--obsidian-light);
+   --bg-navbar: var(--obsidian-black);
+
+   --text-primary: var(--soft-pearl);
+   --text-secondary: var(--soft-pearl-dark);
+   --text-tertiary: var(--warm-sand-light);
+   --text-inverse: var(--obsidian-black);
+
+   --border-color: rgba(242, 241, 237, 0.15);
+   --border-color-light: rgba(242, 241, 237, 0.08);
+   --border-color-dark: rgba(242, 241, 237, 0.25);
+
+   --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.3);
+   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+   --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+   --shadow-xl: 0 12px 40px rgba(0, 0, 0, 0.6);
+}

@@ -1,6 +1,17 @@
 // ============================================================================
 // Analytics Page - JavaScript
+// Updated with Navy Color Palette
 // ============================================================================
+
+// Navy Color Palette
+const NAVY_COLORS = {
+    navy: '#2F4156',
+    crimsonDepth: '#700034',
+    warmSand: '#C3A582',
+    softPearl: '#F7F2F0',
+    obsidianBlack: '#1B1616',
+    chartColors: ['#2F4156', '#700034', '#C3A582', '#3d5470', '#8f0044', '#d4b89a']
+};
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Analytics page loaded');

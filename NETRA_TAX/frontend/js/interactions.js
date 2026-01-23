@@ -1,0 +1,1 @@
+// Placeholder for future shared interactions; current page includes inline logic.

@@ -1,0 +1,586 @@
+/* ============================================================================
+   Card Components - Metric Cards, Chart Cards, Info Cards
+   ============================================================================ */
+
+/* ============================================================================
+   Base Card Styles
+   ============================================================================ */
+
+.card {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border-color);
+  transition: all var(--transition-normal);
+  position: relative;
+  overflow: hidden;
+}
+
+.card:hover {
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-2px);
+}
+
+/* ============================================================================
+   Metric Cards (Animated with Gradients)
+   ============================================================================ */
+
+.metric-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-xl);
+  text-align: center;
+  box-shadow: var(--shadow-md);
+  border-left: 6px solid var(--navy);
+  transition: all var(--transition-normal);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Decorative circle background */
+.metric-card::before {
+  content: '';
+  position: absolute;
+  top: -30px;
+  right: -30px;
+  width: 120px;
+  height: 120px;
+  background: radial-gradient(circle, rgba(47, 65, 86, 0.1) 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.metric-card:hover {
+  transform: translateY(-8px);
+  box-shadow: var(--shadow-xl);
+}
+
+/* Animated gradient background on hover */
+.metric-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--gradient-animated-primary);
+  background-size: 200% 200%;
+  opacity: 0;
+  transition: opacity var(--transition-normal);
+  z-index: 0;
+  animation: gradient-shift 8s ease infinite;
+}
+
+.metric-card:hover::after {
+  opacity: 0.05;
+}
+
+.metric-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Metric Card Variants */
+.metric-card.metric-high-risk {
+  border-left-color: var(--crimson-depth);
+}
+
+.metric-card.metric-high-risk::before {
+  background: radial-gradient(circle, rgba(112, 0, 52, 0.15) 0%, transparent 70%);
+}
+
+.metric-card.metric-medium-risk {
+  border-left-color: var(--warm-sand);
+}
+
+.metric-card.metric-fraud {
+  border-left-color: var(--crimson-depth);
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+.metric-card.metric-success {
+  border-left-color: var(--success);
+}
+
+/* Metric Card Content */
+.metric-icon {
+  font-size: 2.5rem;
+  margin-bottom: var(--spacing-md);
+  color: var(--navy);
+  transition: transform var(--transition-normal);
+}
+
+.metric-card:hover .metric-icon {
+  transform: scale(1.1);
+}
+
+.metric-value {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: var(--navy);
+  margin-bottom: var(--spacing-sm);
+  line-height: 1;
+  animation: fadeInUp 0.6s ease;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.metric-label {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+.metric-change {
+  font-size: 0.75rem;
+  margin-top: var(--spacing-xs);
+  font-weight: 600;
+}
+
+.metric-change.positive {
+  color: var(--success);
+}
+
+.metric-change.negative {
+  color: var(--danger);
+}
+
+/* ============================================================================
+   Chart Cards
+   ============================================================================ */
+
+.chart-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border-color);
+  transition: all var(--transition-normal);
+  min-height: 400px;
+}
+
+.chart-card:hover {
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-2px);
+}
+
+.chart-card.full-width {
+  grid-column: 1 / -1;
+}
+
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-lg);
+  padding-bottom: var(--spacing-md);
+  border-bottom: 2px solid var(--border-color);
+}
+
+.chart-header h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.chart-options {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.chart-container {
+  position: relative;
+  min-height: 300px;
+}
+
+/* ============================================================================
+   Info Cards
+   ============================================================================ */
+
+.info-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  box-shadow: var(--shadow-sm);
+  border-left: 4px solid var(--info);
+  border: 1px solid var(--border-color);
+}
+
+.info-card.warning {
+  border-left-color: var(--warning);
+}
+
+.info-card.danger {
+  border-left-color: var(--danger);
+}
+
+.info-card.success {
+  border-left-color: var(--success);
+}
+
+/* ============================================================================
+   Glassmorphism Cards
+   ============================================================================ */
+
+.card-glass {
+  background: rgba(247, 242, 240, 0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(47, 65, 86, 0.1);
+  box-shadow: var(--shadow-lg);
+}
+
+[data-theme="dark"] .card-glass {
+  background: rgba(47, 65, 86, 0.2);
+  border: 1px solid rgba(247, 242, 240, 0.1);
+}
+
+/* ============================================================================
+   Stat Cards (Small)
+   ============================================================================ */
+
+.stat-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  text-align: center;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-color);
+  transition: all var(--transition-fast);
+}
+
+.stat-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-4px);
+}
+
+.stat-label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--spacing-xs);
+  font-weight: 600;
+}
+
+.stat-value {
+  display: block;
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--navy);
+  line-height: 1;
+}
+
+/* ============================================================================
+   Alert Cards
+   ============================================================================ */
+
+.alert-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  box-shadow: var(--shadow-md);
+  border-left: 5px solid var(--info);
+  display: flex;
+  gap: var(--spacing-md);
+  align-items: flex-start;
+  transition: all var(--transition-fast);
+}
+
+.alert-card:hover {
+  box-shadow: var(--shadow-lg);
+  transform: translateX(4px);
+}
+
+.alert-card.alert-high {
+  border-left-color: var(--danger);
+  background: linear-gradient(135deg, rgba(112, 0, 52, 0.05) 0%, transparent 100%);
+}
+
+.alert-card.alert-medium {
+  border-left-color: var(--warning);
+  background: linear-gradient(135deg, rgba(195, 165, 130, 0.05) 0%, transparent 100%);
+}
+
+.alert-card.alert-low {
+  border-left-color: var(--success);
+}
+
+.alert-icon {
+  font-size: 1.5rem;
+  min-width: 32px;
+  color: var(--navy);
+}
+
+.alert-content {
+  flex: 1;
+}
+
+.alert-title {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-xs);
+}
+
+.alert-description {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-xs);
+}
+
+.alert-time {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+}
+
+/* ============================================================================
+   Feature Cards
+   ============================================================================ */
+
+.feature-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-2xl);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border-color);
+  text-align: center;
+  transition: all var(--transition-normal);
+  position: relative;
+  overflow: hidden;
+}
+
+.feature-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--gradient-hero);
+  transform: scaleX(0);
+  transition: transform var(--transition-normal);
+}
+
+.feature-card:hover::before {
+  transform: scaleX(1);
+}
+
+.feature-card:hover {
+  transform: translateY(-8px);
+  box-shadow: var(--shadow-xl);
+}
+
+.feature-icon {
+  font-size: 3rem;
+  margin-bottom: var(--spacing-lg);
+  color: var(--navy);
+}
+
+.feature-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-sm);
+}
+
+.feature-description {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+/* ============================================================================
+   Responsive Cards
+   ============================================================================ */
+
+@media (max-width: 767px) {
+  .metric-card,
+  .chart-card,
+  .feature-card {
+    padding: var(--spacing-md);
+  }
+  
+  .metric-value {
+    font-size: 2rem;
+  }
+  
+  .chart-card {
+    min-height: 300px;
+  }
+}
+
+@media (max-width: 479px) {
+  .metric-card,
+  .chart-card {
+    padding: var(--spacing-sm);
+  }
+  
+  .metric-value {
+    font-size: 1.75rem;
+  }
+  
+  .chart-card {
+    min-height: 250px;
+  }
+}
+
+/* Upload specific styles */
+.upload-icon {
+    font-size: 3rem;
+    text-align: center;
+    margin-bottom: 1rem;
+}
+
+.drop-zone {
+    border: 2px dashed var(--navy);
+    border-radius: 12px;
+    padding: 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: rgba(47, 65, 86, 0.05);
+    position: relative;
+    margin: 1rem 0;
+}
+
+.drop-zone:hover {
+    border-color: var(--crimson-depth);
+    background: rgba(112, 0, 52, 0.05);
+}
+
+.drop-zone.dragover {
+    border-color: var(--crimson-depth);
+    background: rgba(112, 0, 52, 0.1);
+    transform: scale(1.02);
+}
+
+.drop-zone input[type="file"] {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.drop-zone-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.drop-zone-text {
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+}
+
+.drop-zone-text span {
+    color: var(--navy);
+    font-weight: 600;
+}
+
+.file-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: rgba(47, 65, 86, 0.05);
+    border-radius: 10px;
+    margin-top: 1rem;
+}
+
+.file-details {
+    flex: 1;
+}
+
+.file-name {
+    color: var(--text-primary);
+    font-weight: 500;
+    font-size: 0.95rem;
+}
+
+.file-size {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+}
+
+/* Alert styles */
+.alert {
+    padding: 1rem 1.5rem;
+    border-radius: 12px;
+    margin: 1rem 0;
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.alert-success {
+    background: rgba(39, 174, 96, 0.1);
+    border: 1px solid rgba(39, 174, 96, 0.3);
+    color: #27ae60;
+}
+
+.alert-danger {
+    background: rgba(231, 76, 60, 0.1);
+    border: 1px solid rgba(231, 76, 60, 0.3);
+    color: #e74c3c;
+}
+
+.alert-warning {
+    background: rgba(243, 156, 18, 0.1);
+    border: 1px solid rgba(243, 156, 18, 0.3);
+    color: #f39c12;
+}
+
+/* Badge styles */
+.badge {
+    padding: 0.4rem 1rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    display: inline-block;
+}
+
+.badge-success {
+    background: rgba(39, 174, 96, 0.15);
+    color: #27ae60;
+}
+
+.badge-warning {
+    background: rgba(243, 156, 18, 0.15);
+    color: #f39c12;
+    animation: pulse 1s infinite;
+}
+
+.badge-danger {
+    background: rgba(231, 76, 60, 0.15);
+    color: #e74c3c;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}

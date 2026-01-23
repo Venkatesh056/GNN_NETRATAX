@@ -11,6 +11,13 @@ const Navbar = () => {
     { path: '/companies', label: 'Companies', icon: '🔍' }
   ]
 
+  const toggleTheme = () => {
+    const current = document.documentElement.getAttribute('data-theme') || 'light'
+    const next = current === 'dark' ? 'light' : 'dark'
+    document.documentElement.setAttribute('data-theme', next)
+    localStorage.setItem('netra_theme', next)
+  }
+
   return (
     <motion.nav 
       className="navbar"
@@ -49,6 +56,9 @@ const Navbar = () => {
               </Link>
             </motion.li>
           ))}
+          <li>
+            <button className="nav-link" style={{ background: 'transparent', border: 'none' }} onClick={toggleTheme} title="Toggle theme">🌗 Theme</button>
+          </li>
         </ul>
       </div>
     </motion.nav>

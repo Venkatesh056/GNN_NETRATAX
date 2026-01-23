@@ -1,6 +1,16 @@
 // ============================================================================
 // Tax Fraud Detection Companies Page - JavaScript
+// Updated with Navy Color Palette
 // ============================================================================
+
+// Navy Color Palette
+const NAVY_COLORS = {
+    navy: '#2F4156',
+    crimsonDepth: '#700034',
+    warmSand: '#C3A582',
+    softPearl: '#F7F2F0',
+    obsidianBlack: '#1B1616'
+};
 
 let currentRiskThreshold = 0.5;
 let currentLocations = [];
@@ -188,7 +198,7 @@ function displayCompanies(companies) {
     if (!tbody) return;
 
     if (companies.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center">No companies found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center">No companies found</td></tr>';
         return;
     }
 
@@ -198,25 +208,91 @@ function displayCompanies(companies) {
             ? `"${company.company_id.replace(/"/g, '\\"')}"` 
             : company.company_id;
         
+        // Handle missing or unknown data with better formatting
+        const companyName = company.company_name && company.company_name !== 'Unknown' 
+            ? company.company_name 
+            : `<span style="color: #C3A582; font-style: italic;">Company ${company.company_id}</span>`;
+        
+        const location = company.location && company.location !== 'Unknown' 
+            ? company.location 
+            : '<span style="color: #C3A582;">—</span>';
+        
+        const turnover = company.turnover && company.turnover !== 'Unknown' && typeof company.turnover === 'number'
+            ? '₹' + company.turnover.toLocaleString('en-IN', {maximumFractionDigits: 0})
+            : '<span style="color: #C3A582;">—</span>';
+        
+        const fraudProb = company.fraud_probability && typeof company.fraud_probability === 'number'
+            ? (company.fraud_probability * 100).toFixed(1) + '%'
+            : company.fraud_probability === 'Unknown' || !company.fraud_probability
+            ? '<span style="color: #C3A582;">—</span>'
+            : company.fraud_probability;
+        
+        const invoiceCount = company.sent_invoice_count || company.received_invoice_count || 0;
+        const invoiceDisplay = invoiceCount > 0 
+            ? invoiceCount 
+            : '<span style="color: #C3A582;">0</span>';
+        
+        // Create tooltip content
+        const tooltipContent = `
+            <div class="company-tooltip">
+                <div class="tooltip-header">
+                    <strong>${company.company_id}</strong>
+                    <span class="risk-badge ${getRiskClass(company.risk_level)}">${company.risk_level}</span>
+                </div>
+                <div class="tooltip-body">
+                    <div class="tooltip-row">
+                        <span class="tooltip-label">📍 Location:</span>
+                        <span class="tooltip-value">${company.location || 'Unknown'}</span>
+                    </div>
+                    <div class="tooltip-row">
+                        <span class="tooltip-label">💰 Turnover:</span>
+                        <span class="tooltip-value">${typeof company.turnover === 'number' ? '₹' + company.turnover.toLocaleString('en-IN') : 'Unknown'}</span>
+                    </div>
+                    <div class="tooltip-row">
+                        <span class="tooltip-label">⚠️ Fraud Risk:</span>
+                        <span class="tooltip-value">${typeof company.fraud_probability === 'number' ? (company.fraud_probability * 100).toFixed(1) + '%' : 'Unknown'}</span>
+                    </div>
+                    <div class="tooltip-row">
+                        <span class="tooltip-label">📤 Sent Invoices:</span>
+                        <span class="tooltip-value">${company.sent_invoice_count || 0}</span>
+                    </div>
+                    <div class="tooltip-row">
+                        <span class="tooltip-label">📥 Received Invoices:</span>
+                        <span class="tooltip-value">${company.received_invoice_count || 0}</span>
+                    </div>
+                </div>
+                <div class="tooltip-footer">
+                    Click row to view full details
+                </div>
+            </div>
+        `.replace(/\n/g, '').replace(/"/g, '&quot;');
+        
         return `
-        <tr>
-            <td>${company.company_id}</td>
-            <td>${company.location || 'N/A'}</td>
-            <td>${typeof company.turnover === 'number' ? '₹' + company.turnover.toLocaleString('en-IN', {maximumFractionDigits: 0}) : company.turnover}</td>
-            <td>${typeof company.fraud_probability === 'number' ? (company.fraud_probability * 100).toFixed(2) + '%' : company.fraud_probability}</td>
+        <tr class="company-row" 
+            data-company-id="${company.company_id}"
+            data-tooltip='${tooltipContent}'
+            onclick="showCompanyDetail('${company.company_id.replace(/'/g, "\\'")}')">
+            <td><strong>${company.company_id}</strong></td>
+            <td>${companyName}</td>
+            <td>${location}</td>
+            <td>${turnover}</td>
+            <td><strong>${fraudProb}</strong></td>
             <td><span class="risk-level ${getRiskClass(company.risk_level)}">${company.risk_level}</span></td>
-            <td>${company.status || 'NORMAL'}</td>
+            <td>${invoiceDisplay}</td>
             <td>
                 <button class="btn btn-primary view-company-btn" 
                         style="padding: 6px 12px; font-size: 12px; cursor: pointer;"
                         data-company-id="${company.company_id}"
                         onclick="event.stopPropagation(); showCompanyDetail('${company.company_id.replace(/'/g, "\\'")}')">
-                    View
+                    👁️ View
                 </button>
             </td>
         </tr>
     `;
     }).join('');
+    
+    // Initialize hover tooltips
+    initCompanyTooltips();
     
     // Also add event listeners after rendering (backup method)
     tbody.querySelectorAll('.view-company-btn').forEach(btn => {
@@ -224,6 +300,77 @@ function displayCompanies(companies) {
             e.stopPropagation();
             const companyId = this.getAttribute('data-company-id');
             showCompanyDetail(companyId);
+        });
+    });
+}
+
+// ============================================================================
+// Tooltip Functions
+// ============================================================================
+
+function initCompanyTooltips() {
+    const rows = document.querySelectorAll('.company-row');
+    let tooltipElement = document.getElementById('company-tooltip-container');
+    
+    // Create tooltip container if it doesn't exist
+    if (!tooltipElement) {
+        tooltipElement = document.createElement('div');
+        tooltipElement.id = 'company-tooltip-container';
+        tooltipElement.className = 'company-tooltip-container';
+        document.body.appendChild(tooltipElement);
+    }
+    
+    rows.forEach(row => {
+        row.addEventListener('mouseenter', function(e) {
+            const tooltipHTML = this.getAttribute('data-tooltip');
+            tooltipElement.innerHTML = tooltipHTML;
+            tooltipElement.style.display = 'block';
+            tooltipElement.style.opacity = '0';
+            
+            // Position tooltip
+            const rect = this.getBoundingClientRect();
+            const tooltipRect = tooltipElement.getBoundingClientRect();
+            
+            let left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
+            let top = rect.top - tooltipRect.height - 10;
+            
+            // Adjust if tooltip goes off screen
+            if (left < 10) left = 10;
+            if (left + tooltipRect.width > window.innerWidth - 10) {
+                left = window.innerWidth - tooltipRect.width - 10;
+            }
+            if (top < 10) {
+                top = rect.bottom + 10;
+                tooltipElement.classList.add('tooltip-below');
+            } else {
+                tooltipElement.classList.remove('tooltip-below');
+            }
+            
+            tooltipElement.style.left = left + 'px';
+            tooltipElement.style.top = top + window.scrollY + 'px';
+            
+            // Fade in
+            setTimeout(() => {
+                tooltipElement.style.opacity = '1';
+            }, 10);
+        });
+        
+        row.addEventListener('mouseleave', function() {
+            tooltipElement.style.opacity = '0';
+            setTimeout(() => {
+                tooltipElement.style.display = 'none';
+            }, 200);
+        });
+        
+        row.addEventListener('mousemove', function(e) {
+            // Optional: make tooltip follow cursor
+            // Uncomment if you want this behavior
+            /*
+            const rect = this.getBoundingClientRect();
+            const tooltipRect = tooltipElement.getBoundingClientRect();
+            tooltipElement.style.left = (e.clientX - tooltipRect.width / 2) + 'px';
+            tooltipElement.style.top = (e.clientY - tooltipRect.height - 20) + window.scrollY + 'px';
+            */
         });
     });
 }

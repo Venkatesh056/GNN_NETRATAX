@@ -45,8 +45,22 @@ with st.sidebar:
     - Fraud distribution by state
     """)
 
-# Initialize Groq client (use GROQ_API_KEY in your Streamlit secrets)
-client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+# Load API key from environment or Streamlit secrets
+import os
+from dotenv import load_dotenv
+load_dotenv()
+
+try:
+    # Try Streamlit secrets first
+    api_key = st.secrets["GROQ_API_KEY"]
+except:
+    # Fall back to environment variable
+    api_key = os.getenv("GROQ_API_KEY")
+    if not api_key:
+        st.error("⚠️ GROQ_API_KEY not found! Set it in .streamlit/secrets.toml or .env file")
+        st.stop()
+
+client = Groq(api_key=api_key)
 
 # Chat session state
 if "messages" not in st.session_state:

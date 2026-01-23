@@ -89,6 +89,26 @@ const Analytics = () => {
             customChart
           />
         </div>
+        <div className="charts-row">
+          <ChartCard
+            title="Fraud Ring Size Distribution"
+            endpoint="/api/fraud_ring_sizes"
+            height={400}
+          />
+          <ChartCard
+            title="Centrality Score Heatmap"
+            endpoint="/api/centrality_heatmap"
+            height={400}
+          />
+        </div>
+        <div className="charts-row">
+          <ChartCard
+            title="Invoice Calendar Heatmap"
+            endpoint="/api/calendar_heatmap"
+            height={400}
+            fullWidth
+          />
+        </div>
       </motion.div>
 
       {stats && (

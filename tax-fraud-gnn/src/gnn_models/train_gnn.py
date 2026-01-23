@@ -1,13 +1,16 @@
 """
 GNN Model Training Module
 Implements Graph Neural Network for tax fraud detection
+Enhanced with GAT, residual connections, and advanced training techniques
 """
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torch.optim as optim
 from torch_geometric.data import Data
-from torch_geometric.nn import GCNConv, GraphSAGE, GAT
+from torch_geometric.nn import GCNConv, GraphSAGE, GATConv, SAGEConv, BatchNorm
+from torch_geometric.utils import add_self_loops, degree
 import numpy as np
 from pathlib import Path
 import logging
@@ -19,43 +22,94 @@ logger = logging.getLogger(__name__)
 
 
 class GNNFraudDetector(nn.Module):
-    """Graph Neural Network for fraud detection (Node Classification)"""
+    """
+    Enhanced Graph Neural Network for fraud detection.
+    Uses Graph Attention Networks (GAT) with multi-head attention,
+    residual connections, layer normalization, and MLP classifier.
+    """
     
-    def __init__(self, in_channels, hidden_channels, out_channels, model_type="gcn"):
+    def __init__(self, in_channels, hidden_channels, out_channels, model_type="gat", 
+                 num_heads=8, dropout=0.3, num_layers=4):
         super(GNNFraudDetector, self).__init__()
         
         self.model_type = model_type
+        self.num_layers = num_layers
+        self.dropout = dropout
         
-        if model_type == "gcn":
-            self.conv1 = GCNConv(in_channels, hidden_channels)
-            self.conv2 = GCNConv(hidden_channels, hidden_channels)
-            self.conv3 = GCNConv(hidden_channels, out_channels)
-        elif model_type == "graphsage":
-            self.conv1 = GraphSAGE(in_channels, hidden_channels, num_layers=2)
-            self.conv2 = nn.Linear(hidden_channels, out_channels)
+        # Input projection
+        self.input_proj = nn.Linear(in_channels, hidden_channels)
+        self.input_bn = nn.LayerNorm(hidden_channels)
+        
+        if model_type == "gat":
+            # Multi-layer GAT with residual connections
+            self.convs = nn.ModuleList()
+            self.norms = nn.ModuleList()
+            
+            for i in range(num_layers):
+                if i == 0:
+                    self.convs.append(GATConv(hidden_channels, hidden_channels // num_heads, 
+                                              heads=num_heads, dropout=dropout, concat=True))
+                else:
+                    self.convs.append(GATConv(hidden_channels, hidden_channels // num_heads, 
+                                              heads=num_heads, dropout=dropout, concat=True))
+                self.norms.append(nn.LayerNorm(hidden_channels))
+            
+        elif model_type == "gcn":
+            self.convs = nn.ModuleList()
+            self.norms = nn.ModuleList()
+            for i in range(num_layers):
+                self.convs.append(GCNConv(hidden_channels, hidden_channels))
+                self.norms.append(nn.LayerNorm(hidden_channels))
+                
+        elif model_type == "sage":
+            self.convs = nn.ModuleList()
+            self.norms = nn.ModuleList()
+            for i in range(num_layers):
+                self.convs.append(SAGEConv(hidden_channels, hidden_channels))
+                self.norms.append(nn.LayerNorm(hidden_channels))
         else:
-            raise ValueError(f"Unsupported model type: {model_type}")
+            # Default to GCN
+            self.convs = nn.ModuleList()
+            self.norms = nn.ModuleList()
+            for i in range(num_layers):
+                self.convs.append(GCNConv(hidden_channels, hidden_channels))
+                self.norms.append(nn.LayerNorm(hidden_channels))
         
-        self.dropout = nn.Dropout(p=0.5)
-        self.relu = nn.ReLU()
+        # MLP classifier head
+        self.classifier = nn.Sequential(
+            nn.Linear(hidden_channels, hidden_channels),
+            nn.LayerNorm(hidden_channels),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_channels, hidden_channels // 2),
+            nn.LayerNorm(hidden_channels // 2),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_channels // 2, out_channels)
+        )
+        
+        # Skip connection projections (for dimension matching if needed)
+        self.skip_proj = nn.Linear(hidden_channels, hidden_channels)
     
     def forward(self, x, edge_index):
-        """Forward pass"""
-        if self.model_type == "gcn":
-            x = self.conv1(x, edge_index)
-            x = self.relu(x)
-            x = self.dropout(x)
-            
-            x = self.conv2(x, edge_index)
-            x = self.relu(x)
-            x = self.dropout(x)
-            
-            x = self.conv3(x, edge_index)
-        elif self.model_type == "graphsage":
-            x = self.conv1(x, edge_index)
-            x = self.relu(x)
-            x = self.dropout(x)
-            x = self.conv2(x)
+        """Forward pass with residual connections"""
+        # Input projection
+        x = self.input_proj(x)
+        x = self.input_bn(x)
+        x = F.relu(x)
+        x = F.dropout(x, p=self.dropout, training=self.training)
+        
+        # Graph convolution layers with residual connections
+        for i, (conv, norm) in enumerate(zip(self.convs, self.norms)):
+            identity = x  # Save for residual
+            x = conv(x, edge_index)
+            x = norm(x)
+            x = F.relu(x)
+            x = F.dropout(x, p=self.dropout, training=self.training)
+            x = x + identity  # Residual connection
+        
+        # Classification head
+        x = self.classifier(x)
         
         return x
 

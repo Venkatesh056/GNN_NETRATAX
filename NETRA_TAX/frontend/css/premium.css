@@ -1,0 +1,30 @@
+:root{
+  --font-display: 'Outfit', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --text-xs: 12px; --text-sm: 14px; --text-base: 16px; --text-xl: 20px; --text-2xl: 24px;
+  --radius-md: 10px; --radius-xl: 24px;
+  --transition-fast: 150ms; --transition-base: 250ms;
+  --glass-bg: rgba(255,255,255,0.06);
+  --glass-border: rgba(255,255,255,0.12);
+  --glass-blur: blur(20px);
+  --ebony: #2F4156;
+  --ebony-light: #5A6B7F;
+  --old-lace: #F7F6E3;
+  --grullo: #A29A84;
+  --grullo-light: #B9B2A0;
+  --risk-high: #D4694A;
+  --risk-high-bg: rgba(212,105,74,0.15);
+  --risk-low-bg: rgba(84,103,69,0.15);
+}
+
+body { font-family: var(--font-body); color: var(--old-lace); background: radial-gradient(circle at 0% 0%, #151E28 0%, #000 100%); }
+
+.btn { display:inline-flex; align-items:center; justify-content:center; border-radius: 12px; cursor:pointer; border:none; }
+.btn-primary { background: var(--ebony); color: var(--old-lace); padding: 12px 16px; }
+.btn-primary:hover { background: #213244; }
+
+input, select { background: rgba(255,255,255,0.08); border: 1px solid var(--glass-border); border-radius: 12px; color: var(--old-lace); padding: 12px; }
+input::placeholder, select { color: rgba(247,246,227,0.6); }
+
+/* Utility */
+.hidden { display:none; }

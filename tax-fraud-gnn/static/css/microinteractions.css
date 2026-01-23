@@ -1,0 +1,519 @@
+/* ============================================================================
+   Microinteractions - Subtle, Delightful UI Details
+   Navy Palette - Professional & Sophisticated
+   ============================================================================ */
+
+/* ============================================================================
+   Input Focus Effects
+   ============================================================================ */
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="search"]:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: #700034;
+  box-shadow: 0 0 0 3px rgba(112, 0, 52, 0.1);
+  transform: translateY(-1px);
+  transition: all 0.3s ease;
+}
+
+/* ============================================================================
+   Checkbox & Radio Custom Styles
+   ============================================================================ */
+
+input[type="checkbox"],
+input[type="radio"] {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border: 2px solid #2F4156;
+  border-radius: 4px;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+input[type="radio"] {
+  border-radius: 50%;
+}
+
+input[type="checkbox"]:checked,
+input[type="radio"]:checked {
+  background: #700034;
+  border-color: #700034;
+}
+
+input[type="checkbox"]:checked::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+input[type="radio"]:checked::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 8px;
+  height: 8px;
+  background: white;
+  border-radius: 50%;
+}
+
+input[type="checkbox"]:hover,
+input[type="radio"]:hover {
+  border-color: #700034;
+  transform: scale(1.1);
+}
+
+/* ============================================================================
+   Link Hover Effects
+   ============================================================================ */
+
+a:not(.btn):not(.nav-link) {
+  position: relative;
+  transition: color 0.3s ease;
+}
+
+a:not(.btn):not(.nav-link)::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: #700034;
+  transition: width 0.3s ease;
+}
+
+a:not(.btn):not(.nav-link):hover::after {
+  width: 100%;
+}
+
+/* ============================================================================
+   Button Press Effect
+   ============================================================================ */
+
+button:active,
+.btn:active {
+  transform: scale(0.95);
+  transition: transform 0.1s ease;
+}
+
+/* ============================================================================
+   Card Tilt Effect on Hover
+   ============================================================================ */
+
+.metric-card,
+.stat-card,
+.feature-card {
+  transform-style: preserve-3d;
+  transition: transform 0.3s ease;
+}
+
+.metric-card:hover,
+.stat-card:hover,
+.feature-card:hover {
+  transform: perspective(1000px) rotateX(2deg) rotateY(2deg) translateY(-8px);
+}
+
+/* ============================================================================
+   Icon Bounce on Hover
+   ============================================================================ */
+
+.metric-icon,
+.stat-icon,
+.feature-icon,
+.intel-icon {
+  display: inline-block;
+  transition: transform 0.3s ease;
+}
+
+.metric-card:hover .metric-icon,
+.stat-card:hover .stat-icon,
+.feature-card:hover .feature-icon,
+.intel-card:hover .intel-icon {
+  animation: iconBounce 0.6s ease;
+}
+
+@keyframes iconBounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+/* ============================================================================
+   Table Row Highlight
+   ============================================================================ */
+
+.companies-table tbody tr {
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.companies-table tbody tr::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  background: linear-gradient(90deg, rgba(112, 0, 52, 0.1), transparent);
+  transition: width 0.3s ease;
+}
+
+.companies-table tbody tr:hover::before {
+  width: 100%;
+}
+
+.companies-table tbody tr:hover {
+  transform: translateX(5px);
+}
+
+/* ============================================================================
+   Badge Pulse Effect
+   ============================================================================ */
+
+.risk-badge,
+.risk-level,
+.notification-badge {
+  position: relative;
+  overflow: hidden;
+}
+
+.risk-badge::before,
+.risk-level::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: width 0.4s ease, height 0.4s ease;
+}
+
+.risk-badge:hover::before,
+.risk-level:hover::before {
+  width: 100px;
+  height: 100px;
+}
+
+/* ============================================================================
+   Progress Bar Shimmer
+   ============================================================================ */
+
+.progress-bar-fill {
+  position: relative;
+  overflow: hidden;
+}
+
+.progress-bar-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.4),
+    transparent
+  );
+  animation: shimmerProgress 2s infinite;
+}
+
+@keyframes shimmerProgress {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+/* ============================================================================
+   Chart Container Glow on Hover
+   ============================================================================ */
+
+.chart-container {
+  position: relative;
+}
+
+.chart-container::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(45deg, #2F4156, #700034, #2F4156);
+  border-radius: 12px;
+  opacity: 0;
+  z-index: -1;
+  transition: opacity 0.3s ease;
+  background-size: 200% 200%;
+  animation: gradientShift 3s ease infinite;
+}
+
+.chart-container:hover::before {
+  opacity: 0.3;
+}
+
+@keyframes gradientShift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* ============================================================================
+   Dropdown Menu Animation
+   ============================================================================ */
+
+select {
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+select:hover {
+  border-color: #700034;
+  box-shadow: 0 2px 8px rgba(112, 0, 52, 0.1);
+}
+
+select:focus {
+  transform: scale(1.02);
+}
+
+/* ============================================================================
+   Modal Entrance Animation
+   ============================================================================ */
+
+.modal {
+  animation: modalFadeIn 0.3s ease;
+}
+
+.modal-content {
+  animation: modalSlideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modalSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(50px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ============================================================================
+   Search Input Expand Effect
+   ============================================================================ */
+
+input[type="search"],
+input[type="text"].search-input {
+  transition: all 0.3s ease;
+}
+
+input[type="search"]:focus,
+input[type="text"].search-input:focus {
+  width: 120%;
+  max-width: 400px;
+}
+
+/* ============================================================================
+   Number Input Spinner Custom
+   ============================================================================ */
+
+input[type="number"] {
+  appearance: textfield;
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+/* ============================================================================
+   Range Slider Custom Style
+   ============================================================================ */
+
+input[type="range"] {
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  background: rgba(47, 65, 86, 0.1);
+  border-radius: 3px;
+  outline: none;
+  transition: background 0.3s ease;
+}
+
+input[type="range"]:hover {
+  background: rgba(47, 65, 86, 0.2);
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  background: #700034;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(112, 0, 52, 0.3);
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+  box-shadow: 0 4px 12px rgba(112, 0, 52, 0.4);
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  background: #700034;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(112, 0, 52, 0.3);
+  border: none;
+}
+
+input[type="range"]::-moz-range-thumb:hover {
+  transform: scale(1.2);
+  box-shadow: 0 4px 12px rgba(112, 0, 52, 0.4);
+}
+
+/* ============================================================================
+   Text Selection Style
+   ============================================================================ */
+
+::selection {
+  background: rgba(112, 0, 52, 0.2);
+  color: #2F4156;
+}
+
+::-moz-selection {
+  background: rgba(112, 0, 52, 0.2);
+  color: #2F4156;
+}
+
+/* ============================================================================
+   Scrollbar Custom Style
+   ============================================================================ */
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(47, 65, 86, 0.05);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(112, 0, 52, 0.3);
+  border-radius: 5px;
+  transition: background 0.3s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(112, 0, 52, 0.5);
+}
+
+/* ============================================================================
+   Loading State Shimmer
+   ============================================================================ */
+
+.loading-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(47, 65, 86, 0.05) 25%,
+    rgba(47, 65, 86, 0.15) 50%,
+    rgba(47, 65, 86, 0.05) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* ============================================================================
+   Disabled State
+   ============================================================================ */
+
+button:disabled,
+input:disabled,
+select:disabled,
+textarea:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  filter: grayscale(50%);
+}
+
+/* ============================================================================
+   Focus Visible (Accessibility)
+   ============================================================================ */
+
+*:focus-visible {
+  outline: 2px solid #700034;
+  outline-offset: 2px;
+}
+
+/* ============================================================================
+   Smooth Color Transitions
+   ============================================================================ */
+
+* {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+
+/* Exclude elements that shouldn't have transitions */
+*:where(
+  input[type="range"],
+  .no-transition,
+  [data-no-transition]
+) {
+  transition: none;
+}

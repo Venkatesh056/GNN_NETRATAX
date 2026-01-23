@@ -1,69 +1,61 @@
 /* ============================================================================
    Tax Fraud Detection Dashboard - Complete Stylesheet
-   Color Palette: Arctic Powder, Forsythia, Deep Saffron, Mystic Mint, 
-                  Nocturnal Expedition, Oceanic Noir, MP025
+   NEW Color Palette: Navy, Crimson Depth, Warm Sand, Soft Pearl, Obsidian Black
    ============================================================================ */
 
-/* Color Variables */
+/* Import Foundation Styles */
+@import url('reset.css');
+@import url('colors.css');
+@import url('themes.css');
+@import url('typography.css');
+@import url('gradients.css');
+@import url('responsive.css');
+@import url('base.css');
+
+/* Import Component Styles */
+@import url('components/buttons.css');
+@import url('components/cards.css');
+@import url('components/charts.css');
+@import url('components/tables.css');
+@import url('components/modals.css');
+@import url('components/navigation.css');
+
+/* Import Animations & Effects */
+@import url('animations.css');
+@import url('microinteractions.css');
+@import url('chart-loading-states.css');
+
+/* Import Navy Palette Override - MUST BE LAST */
+@import url('navy-override.css');
+
+/* Legacy Color Variables - Mapped to Navy Palette */
 :root {
-    /* Primary Colors from Palette - Exact Names */
-    --forsythia: #FFC801;
-    --deep-saffron: #FF9932;
-    --arctic-powder: #F1F6F4;
-    --mystic-mint: #D9E8E2;
-    --nocturnal-expedition: #114C5A;
-    --oceanic-noir: #172B36;
+    /* Map old color names to new Navy palette */
+    --forsythia: var(--warm-sand);
+    --deep-saffron: var(--crimson-depth);
+    --arctic-powder: var(--soft-pearl);
+    --mystic-mint: var(--soft-pearl);
+    --nocturnal-expedition: var(--navy);
+    --oceanic-noir: var(--obsidian-black);
+    --nocturnal: var(--navy);
     
-    /* Legacy variable names for compatibility */
-    --nocturnal: #114C5A;
-    --arctic-powder: #F1F6F4;
-    --forsythia: #FFC801;
-    --deep-saffron: #FF9932;
-    --mystic-mint: #D9E8E2;
-    --oceanic-noir: #172B36;
-    
-    /* Derived Colors */
-    --primary-color: #114C5A;
-    --primary-dark: #0d3240;
-    --secondary-color: #FFC801;
-    --accent-color: #FF9932;
+    /* Derived Colors using Navy palette */
+    --primary-color: var(--navy);
+    --primary-dark: #1f2d3a;
+    --secondary-color: var(--warm-sand);
+    --accent-color: var(--crimson-depth);
     --success-color: #27ae60;
     --danger-color: #e74c3c;
     --warning-color: #f39c12;
     --info-color: #3498db;
     
     /* Neutrals */
-    --light-bg: #F1F6F4;
+    --light-bg: var(--soft-pearl);
     --white: #FFFFFF;
-    --dark: #172B36;
-    --text-color: #172B36;
+    --dark: var(--obsidian-black);
+    --text-color: var(--navy);
     --text-light: #6B7280;
-    --border-color: #D9E8E2;
-    
-    /* Light Theme Colors */
-    --bg-primary: var(--arctic-powder);
-    --bg-secondary: var(--mystic-mint);
-    --bg-card: var(--white);
-    --bg-navbar: rgba(241, 246, 244, 0.95);
-    --text-primary: var(--nocturnal-expedition);
-    --text-secondary: #6B7280;
-    --shadow: rgba(0, 0, 0, 0.1);
-}
-
-/* Dark Theme Variables */
-body[data-theme="dark"],
-[data-theme="dark"] {
-    --bg-primary: var(--oceanic-noir);
-    --bg-secondary: var(--nocturnal-expedition);
-    --bg-card: rgba(23, 43, 54, 0.9);
-    --bg-navbar: rgba(23, 43, 54, 0.95);
-    --text-primary: var(--arctic-powder);
-    --text-secondary: var(--mystic-mint);
-    --text-light: rgba(241, 246, 244, 0.7);
-    --text-color: var(--arctic-powder);
-    --light-bg: var(--oceanic-noir);
-    --border-color: rgba(255, 255, 255, 0.1);
-    --shadow: rgba(0, 0, 0, 0.3);
+    --border-color: rgba(47, 65, 86, 0.1);
 }
 
 html, body {
@@ -373,14 +365,14 @@ h3 {
     border-radius: 10px;
     padding: 20px;
     box-shadow: 0 4px 12px var(--shadow);
-    transition: all 0.3s ease;
+    transition: box-shadow 0.3s ease, background 0.3s ease;
     min-height: 450px;
     border: 1px solid var(--border-color);
 }
 
 .chart-container:hover {
     box-shadow: 0 8px 20px var(--shadow);
-    transform: translateY(-2px);
+    /* REMOVED transform: translateY(-2px); - this breaks Plotly tooltips */
 }
 
 .chart-container.full-width {

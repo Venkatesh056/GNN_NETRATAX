@@ -6,12 +6,12 @@
 // Configuration
 const REFRESH_INTERVAL = 30000; // Refresh every 30 seconds
 const CHART_COLORS = {
-    primary: '#114C5A',
-    secondary: '#FFC801',
-    danger: '#e74c3c',
-    warning: '#f39c12',
-    success: '#27ae60',
-    info: '#3498db',
+    primary: '#0F4C5C',      // Midnight Teal
+    secondary: '#FFB703',    // Signal Amber
+    danger: '#D62828',       // Alert Crimson
+    warning: '#F77F00',      // Deep Orange
+    success: '#2A9D8F',      // Secure Green
+    info: '#3A86FF',         // Cyber Blue
 };
 
 // Global state
@@ -27,12 +27,20 @@ let dashboardState = {
  */
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('Dashboard initializing...');
-    requireAuth();
+
+    // Wait for API detection to complete
+    if (api._readyPromise) {
+        await api._readyPromise;
+    }
+
+    // Update user display
+    const userDisplay = document.getElementById('userDisplay');
+    if (userDisplay) {
+        const user = getCurrentUser();
+        userDisplay.textContent = user.full_name || user.username || 'Admin';
+    }
 
     try {
-        // Load user info
-        await loadUserInfo();
-
         // Load dashboard data
         await loadDashboardData();
 
@@ -47,60 +55,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.log('Dashboard initialized successfully');
     } catch (error) {
         console.error('Dashboard initialization error:', error);
-        showNotification('Failed to load dashboard', 'error');
+        showNotification('Failed to load dashboard - Backend may be offline', 'error');
     }
 });
-
-/**
- * Load current user info and update navbar
- */
-async function loadUserInfo() {
-    try {
-        const user = getCurrentUser();
-        if (!user) {
-            const response = await api.getCurrentUser();
-            setCurrentUser(response);
-            updateNavbar(response);
-        } else {
-            updateNavbar(user);
-        }
-    } catch (error) {
-        console.error('Failed to load user info:', error);
-    }
-}
-
-/**
- * Update navbar with user information
- */
-function updateNavbar(user) {
-    const userNameElement = document.querySelector('.user-name');
-    const userRoleElement = document.querySelector('.user-role');
-
-    if (userNameElement) userNameElement.textContent = user.full_name || user.username;
-    if (userRoleElement) userRoleElement.textContent = user.role.toUpperCase();
-
-    // Update user dropdown
-    const userDropdown = document.querySelector('.user-dropdown');
-    if (userDropdown) {
-        userDropdown.innerHTML = `
-            <a href="/profile.html">👤 My Profile</a>
-            <a href="/settings.html">⚙️ Settings</a>
-            <hr style="margin: 8px 0; border: none; border-top: 1px solid #ecf0f1;">
-            <a onclick="logoutUser()" style="cursor: pointer;">🚪 Logout</a>
-        `;
-    }
-}
 
 /**
  * Load all dashboard data
  */
 async function loadDashboardData() {
     try {
-        // Load fraud summary
+        // Load fraud summary / statistics
         await loadFraudSummary();
-
-        // Load system health
-        await loadSystemHealth();
 
         // Load charts
         await loadCharts();
@@ -108,13 +73,19 @@ async function loadDashboardData() {
         // Load alerts
         await loadAlerts();
 
-        // Load high-risk companies
+        // Load high-risk companies table
         await loadHighRiskCompanies();
 
-        showNotification('Dashboard updated', 'success', 2000);
+        // Update last update time
+        const lastUpdate = document.getElementById('lastUpdate');
+        if (lastUpdate) {
+            lastUpdate.textContent = 'Just now';
+        }
+
+        console.log('Dashboard data loaded successfully');
     } catch (error) {
         console.error('Error loading dashboard data:', error);
-        showNotification('Failed to refresh dashboard', 'error');
+        showNotification('Error refreshing data', 'error');
     }
 }
 
@@ -123,71 +94,32 @@ async function loadDashboardData() {
  */
 async function loadFraudSummary() {
     try {
-        showSpinner(document.querySelector('.metrics-grid'));
-
         const summary = await api.getFraudSummary();
         dashboardState.fraudSummary = summary;
 
         // Update metric cards by ID
-        document.getElementById('totalEntities').textContent = formatNumber(summary.total_entities);
-        document.getElementById('highRiskCount').textContent = formatNumber(summary.high_risk_count);
-        document.getElementById('mediumRiskCount').textContent = formatNumber(summary.medium_risk_count);
-        document.getElementById('fraudRingCount').textContent = formatNumber(summary.fraud_rings_detected);
+        const totalEntities = document.getElementById('totalEntities');
+        const highRiskCount = document.getElementById('highRiskCount');
+        const mediumRiskCount = document.getElementById('mediumRiskCount');
+        const fraudRingCount = document.getElementById('fraudRingCount');
 
-        // Update changes
-        const highRiskEl = document.getElementById('highRiskCount').parentElement;
-        if (highRiskEl && highRiskEl.nextElementSibling) {
-            highRiskEl.nextElementSibling.textContent = `${((summary.high_risk_count / summary.total_entities) * 100).toFixed(1)}% of total`;
-        }
+        if (totalEntities) totalEntities.textContent = formatNumber(summary.total_entities);
+        if (highRiskCount) highRiskCount.textContent = formatNumber(summary.high_risk_count);
+        if (mediumRiskCount) mediumRiskCount.textContent = formatNumber(summary.medium_risk_count);
+        if (fraudRingCount) fraudRingCount.textContent = formatNumber(summary.fraud_rings_detected);
 
-        const mediumRiskEl = document.getElementById('mediumRiskCount').parentElement;
-        if (mediumRiskEl && mediumRiskEl.nextElementSibling) {
-            mediumRiskEl.nextElementSibling.textContent = `${((summary.medium_risk_count / summary.total_entities) * 100).toFixed(1)}% of total`;
-        }
-
-        const fraudRingEl = document.getElementById('fraudRingCount').parentElement;
-        if (fraudRingEl && fraudRingEl.nextElementSibling) {
-            fraudRingEl.nextElementSibling.textContent = summary.fraud_rings_detected > 0 ? '⚠️ Immediate action required' : '✓ No active rings';
-        }
-
-        hideSpinner();
     } catch (error) {
         console.error('Error loading fraud summary:', error);
-        hideSpinner();
-        throw error;
-    }
-}
+        // Set fallback values
+        const totalEntities = document.getElementById('totalEntities');
+        const highRiskCount = document.getElementById('highRiskCount');
+        const mediumRiskCount = document.getElementById('mediumRiskCount');
+        const fraudRingCount = document.getElementById('fraudRingCount');
 
-/**
- * Load system health status
- */
-async function loadSystemHealth() {
-    try {
-        const health = await api.getHealth();
-        dashboardState.systemHealth = health;
-
-        // Update health indicators
-        const healthIndicator = document.querySelector('.health-indicator');
-        if (healthIndicator) {
-            if (health.status === 'healthy') {
-                healthIndicator.className = 'health-indicator online';
-                healthIndicator.style.backgroundColor = '#27ae60';
-                document.querySelector('.status').textContent = 'System Online';
-            } else {
-                healthIndicator.className = 'health-indicator offline';
-                healthIndicator.style.backgroundColor = '#e74c3c';
-                document.querySelector('.status').textContent = 'System Issues';
-            }
-        }
-
-        // Update timestamp
-        const timestampElement = document.querySelector('.health-timestamp');
-        if (timestampElement) {
-            timestampElement.textContent = `Last checked: ${formatTimeAgo(health.timestamp)}`;
-        }
-    } catch (error) {
-        console.error('Error loading system health:', error);
-        // Don't throw - health check is non-critical
+        if (totalEntities) totalEntities.textContent = '0';
+        if (highRiskCount) highRiskCount.textContent = '0';
+        if (mediumRiskCount) mediumRiskCount.textContent = '0';
+        if (fraudRingCount) fraudRingCount.textContent = '0';
     }
 }
 
@@ -202,11 +134,21 @@ async function loadCharts() {
         // Risk distribution pie chart
         renderRiskDistributionChart(summary);
 
-        // Fraud score distribution
-        renderFraudScoreDistribution(summary);
+        // Fraud score distribution (from backend data, no synthetic generation)
+        await renderFraudScoreDistributionFromAPI();
 
-        // Trend chart
-        renderTrendChart(summary);
+        // Trend chart / calendar heatmap
+        await renderCalendarHeatmapFromAPI();
+
+        // Fraud ring bubble chart
+        await renderFraudRingBubbleFromAPI();
+
+        // Centrality heatmap
+        await renderCentralityHeatmapFromAPI();
+
+        // Top Senders & Top Receivers charts
+        await renderTopSendersChart();
+        await renderTopReceiversChart();
     } catch (error) {
         console.error('Error loading charts:', error);
     }
@@ -225,242 +167,311 @@ function renderRiskDistributionChart(summary) {
 
     const data = [{
         labels: ['High Risk', 'Medium Risk', 'Low Risk'],
-        values: [high, medium, low],
+        values: [high, medium, Math.max(0, low)],
         type: 'pie',
-        marker: { colors: ['#e74c3c', '#f39c12', '#27ae60'] },
+        marker: { colors: [CHART_COLORS.danger, CHART_COLORS.warning, CHART_COLORS.success] },
         hoverinfo: 'label+value+percent',
+        hovertemplate: '<b>%{label}</b><br>Count: %{value}<br>Percentage: %{percent}<extra></extra>',
         textposition: 'inside',
         textinfo: 'percent'
     }];
 
     const layout = {
         height: 300,
-        margin: { l: 0, r: 0, t: 20, b: 0 },
-        font: { family: 'Arial, sans-serif', color: '#172B36' },
+        margin: { l: 20, r: 20, t: 20, b: 20 },
+        font: { family: 'Inter, sans-serif', color: '#1A1A1A' },
         showlegend: true,
-        legend: { orientation: 'v', y: 0.5, x: 1.0 }
+        legend: { orientation: 'v', y: 0.5, x: 1.0 },
+        paper_bgcolor: 'transparent',
+        plot_bgcolor: 'transparent',
+        hoverlabel: {
+            bgcolor: 'white',
+            bordercolor: '#0F4C5C',
+            font: { family: 'Inter, sans-serif', size: 13, color: '#1A1A1A' }
+        }
     };
 
-    Plotly.newPlot(container, data, layout, { responsive: true });
+    Plotly.newPlot(container, data, layout, { responsive: true, displayModeBar: false });
 }
 
 /**
  * Render fraud score distribution using Plotly
  */
-function renderFraudScoreDistribution(summary) {
+async function renderFraudScoreDistributionFromAPI() {
     const container = document.getElementById('fraudScoreChart');
     if (!container) return;
+    try {
+        const fig = await api.getRiskDistribution();
 
-    // Create sample score data based on summary
-    const scores = [];
-    for (let i = 0; i < summary.high_risk_count; i++) {
-        scores.push(0.7 + Math.random() * 0.3);
+        // Use layout from API but ensure proper hover settings
+        const layout = {
+            ...fig.layout,
+            paper_bgcolor: 'transparent',
+            plot_bgcolor: 'rgba(0,0,0,0.02)',
+            hovermode: 'closest',
+            hoverlabel: {
+                bgcolor: 'white',
+                bordercolor: '#0F4C5C',
+                font: { family: 'Inter, sans-serif', size: 13, color: '#1A1A1A' }
+            }
+        };
+
+        Plotly.newPlot(container, fig.data, layout, { responsive: true, displayModeBar: false });
+    } catch (e) {
+        console.error('Risk distribution chart error:', e);
+        container.innerHTML = '<div class="empty-state"><p>No data for risk distribution</p></div>';
     }
-    for (let i = 0; i < summary.medium_risk_count; i++) {
-        scores.push(0.4 + Math.random() * 0.3);
-    }
-    for (let i = 0; i < summary.low_risk_count; i++) {
-        scores.push(Math.random() * 0.4);
-    }
-
-    const data = [{
-        x: scores,
-        type: 'histogram',
-        nbinsx: 20,
-        marker: { color: '#FF9932', opacity: 0.7 },
-        hoverinfo: 'y'
-    }];
-
-    const layout = {
-        height: 300,
-        xaxis: { title: 'Fraud Score', zeroline: false },
-        yaxis: { title: 'Number of Entities', zeroline: false },
-        margin: { l: 60, r: 40, t: 20, b: 40 },
-        font: { family: 'Arial, sans-serif', color: '#172B36' },
-        plot_bgcolor: '#f8f9fa',
-        paper_bgcolor: '#ffffff'
-    };
-
-    Plotly.newPlot(container, data, layout, { responsive: true });
 }
 
 /**
  * Render trend chart using Plotly
  */
-function renderTrendChart(summary) {
-    const container = document.getElementById('trendChart');
+async function renderCalendarHeatmapFromAPI() {
+    const container = document.getElementById('calendarHeatmap');
     if (!container) return;
-
-    // Generate last 30 days trend
-    const days = [];
-    const highRiskTrend = [];
-    const fraudDetections = [];
-    
-    const today = new Date();
-    for (let i = 29; i >= 0; i--) {
-        const date = new Date(today);
-        date.setDate(date.getDate() - i);
-        days.push(date.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }));
-        
-        // Generate synthetic trend
-        const baseHigh = summary.high_risk_count;
-        highRiskTrend.push(Math.max(0, baseHigh + Math.floor(Math.random() * 10 - 5)));
-        fraudDetections.push(Math.floor(Math.random() * 5 + 1));
+    try {
+        const data = await api.getTimelineData();
+        const x = data.map(d => d.label || d.date);
+        const y = data.map(d => d.value || 0);
+        const trace = {
+            x, y, type: 'bar',
+            marker: { color: CHART_COLORS.info },
+            hovertemplate: '<b>%{x}</b><br>Value: %{y:,.0f}<extra></extra>'
+        };
+        const layout = {
+            height: 300,
+            margin: { l: 40, r: 20, t: 20, b: 60 },
+            xaxis: { type: 'category' },
+            hovermode: 'closest',
+            hoverlabel: {
+                bgcolor: 'white',
+                bordercolor: '#3A86FF',
+                font: { family: 'Inter, sans-serif', size: 13, color: '#1A1A1A' }
+            }
+        };
+        Plotly.newPlot(container, [trace], layout, { responsive: true, displayModeBar: false });
+    } catch (e) {
+        console.error('Timeline chart error:', e);
+        container.innerHTML = '<div class="empty-state"><p>No timeline data</p></div>';
     }
-
-    const data = [
-        {
-            x: days,
-            y: highRiskTrend,
-            name: 'High-Risk Entities',
-            type: 'scatter',
-            mode: 'lines+markers',
-            line: { color: '#e74c3c', width: 2 },
-            marker: { size: 6 }
-        },
-        {
-            x: days,
-            y: fraudDetections,
-            name: 'New Frauds Detected',
-            type: 'scatter',
-            mode: 'lines+markers',
-            line: { color: '#FFC801', width: 2 },
-            marker: { size: 6 },
-            yaxis: 'y2'
-        }
-    ];
-
-    const layout = {
-        height: 300,
-        xaxis: { title: 'Date' },
-        yaxis: { title: 'High-Risk Count', side: 'left' },
-        yaxis2: { title: 'New Detections', overlaying: 'y', side: 'right' },
-        margin: { l: 60, r: 60, t: 20, b: 40 },
-        font: { family: 'Arial, sans-serif', color: '#172B36' },
-        plot_bgcolor: '#f8f9fa',
-        paper_bgcolor: '#ffffff',
-        legend: { x: 0.01, y: 0.99 },
-        hovermode: 'x unified'
-    };
-
-    Plotly.newPlot(container, data, layout, { responsive: true });
 }
 
-    // Draw axes
-    ctx.strokeStyle = '#bdc3c7';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(padding, height - padding);
-    ctx.lineTo(width - padding, height - padding);
-    ctx.stroke();
+async function renderFraudRingBubbleFromAPI() {
+    const container = document.getElementById('fraudRingBubbleChart');
+    if (!container) return;
+    try {
+        const data = await api.getFraudRingSizes();
+        const trace = {
+            x: data.sizes,
+            y: data.counts,
+            mode: 'markers',
+            marker: { size: data.sizes.map(s => s * 5), color: CHART_COLORS.danger, opacity: 0.7 },
+            hovertemplate: '<b>Ring Size: %{x}</b><br>Count: %{y}<br>Companies in ring: %{marker.size}<extra></extra>'
+        };
+        const layout = {
+            height: 300,
+            xaxis: { title: 'Ring Size' },
+            yaxis: { title: 'Count' },
+            hovermode: 'closest',
+            hoverlabel: {
+                bgcolor: 'white',
+                bordercolor: '#D62828',
+                font: { family: 'Inter, sans-serif', size: 13, color: '#1A1A1A' }
+            }
+        };
+        Plotly.newPlot(container, [trace], layout, { responsive: true, displayModeBar: false });
+    } catch (e) {
+        console.error('Fraud ring chart error:', e);
+        container.innerHTML = '<div class="empty-state"><p>No fraud ring data</p></div>';
+    }
+}
 
-    ctx.beginPath();
-    ctx.moveTo(padding, padding);
-    ctx.lineTo(padding, height - padding);
-    ctx.stroke();
-
-    // Draw line
-    ctx.strokeStyle = CHART_COLORS.danger;
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-
-    detectedFrauds.forEach((value, index) => {
-        const x = padding + ((width - 2 * padding) / (detectedFrauds.length - 1)) * index;
-        const y = height - padding - ((value / maxValue) * (height - 2 * padding));
-
-        if (index === 0) {
-            ctx.moveTo(x, y);
-        } else {
-            ctx.lineTo(x, y);
-        }
-    });
-
-    ctx.stroke();
-
-    // Draw points
-    ctx.fillStyle = CHART_COLORS.danger;
-    detectedFrauds.forEach((value, index) => {
-        const x = padding + ((width - 2 * padding) / (detectedFrauds.length - 1)) * index;
-        const y = height - padding - ((value / maxValue) * (height - 2 * padding));
-
-        ctx.beginPath();
-        ctx.arc(x, y, pointRadius, 0, 2 * Math.PI);
-        ctx.fill();
-    });
-
-    // Draw labels
-    ctx.fillStyle = '#172B36';
-    ctx.font = '11px sans-serif';
-    ctx.textAlign = 'center';
-
-    months.forEach((month, index) => {
-        const x = padding + ((width - 2 * padding) / (months.length - 1)) * index;
-        ctx.fillText(month, x, height - padding + 20);
-    });
+async function renderCentralityHeatmapFromAPI() {
+    const container = document.getElementById('centralityHeatmap');
+    if (!container) return;
+    try {
+        const res = await api.getCentralityHeatmap();
+        const layout = {
+            height: 300,
+            margin: { l: 60, r: 20, t: 20, b: 80 },
+            hovermode: 'closest',
+            hoverlabel: {
+                bgcolor: 'white',
+                bordercolor: '#0F4C5C',
+                font: { family: 'Inter, sans-serif', size: 13, color: '#1A1A1A' }
+            }
+        };
+        // Merge with any existing layout from API
+        const finalLayout = { ...layout, ...(res.layout || {}) };
+        finalLayout.hoverlabel = layout.hoverlabel;
+        finalLayout.hovermode = 'closest';
+        Plotly.newPlot(container, res.data, finalLayout, { responsive: true, displayModeBar: false });
+    } catch (e) {
+        console.error('Centrality heatmap error:', e);
+        container.innerHTML = '<div class="empty-state"><p>No centrality data</p></div>';
+    }
 }
 
 /**
- * Helper function to draw pie slice
+ * Render Top Invoice Senders Chart
  */
-function drawPieSlice(ctx, centerX, centerY, radius, startAngle, endAngle, color) {
-    const startAngleRad = (startAngle * Math.PI) / 180;
-    const endAngleRad = (endAngle * Math.PI) / 180;
+async function renderTopSendersChart() {
+    const container = document.getElementById('topSendersChart');
+    if (!container) return;
 
-    ctx.beginPath();
-    ctx.moveTo(centerX, centerY);
-    ctx.arc(centerX, centerY, radius, startAngleRad, endAngleRad);
-    ctx.closePath();
-    ctx.fillStyle = color;
-    ctx.fill();
+    try {
+        const response = await fetch(`${api.baseURL}/api/top_senders`);
+        const chartData = await response.json();
+
+        if (chartData.error) throw new Error(chartData.error);
+
+        if (chartData.data && chartData.data.length > 0) {
+            // Use layout from backend, just enhance with some visual tweaks
+            const layout = {
+                ...chartData.layout,
+                height: 350,
+                margin: { l: 100, r: 30, t: 40, b: 40 },
+                paper_bgcolor: 'transparent',
+                plot_bgcolor: 'transparent',
+                font: { family: 'Inter, sans-serif', size: 11 },
+                hovermode: 'closest',
+                hoverlabel: {
+                    bgcolor: 'white',
+                    bordercolor: '#F77F00',
+                    font: { family: 'Inter, sans-serif', size: 13, color: '#1A1A1A' }
+                }
+            };
+
+            // Add gradient color to bars
+            if (chartData.data[0]) {
+                const yValues = chartData.data[0].x || chartData.data[0].y;
+                chartData.data[0].marker = {
+                    color: yValues,
+                    colorscale: [[0, '#FFB703'], [0.5, '#F77F00'], [1, '#D62828']],
+                    showscale: false
+                };
+            }
+
+            Plotly.newPlot(container, chartData.data, layout, { responsive: true, displayModeBar: false });
+        } else {
+            container.innerHTML = '<div class="empty-state" style="height: 100%; display: flex; align-items: center; justify-content: center;"><p>No sender data available</p></div>';
+        }
+    } catch (error) {
+        console.error('Error loading top senders chart:', error);
+        container.innerHTML = '<div class="empty-state" style="height: 100%; display: flex; align-items: center; justify-content: center;"><p>Failed to load sender data</p></div>';
+    }
+}
+
+/**
+ * Render Top Invoice Receivers Chart
+ */
+async function renderTopReceiversChart() {
+    const container = document.getElementById('topReceiversChart');
+    if (!container) return;
+
+    try {
+        const response = await fetch(`${api.baseURL}/api/top_receivers`);
+        const chartData = await response.json();
+
+        if (chartData.error) throw new Error(chartData.error);
+
+        if (chartData.data && chartData.data.length > 0) {
+            // Use layout from backend, just enhance with some visual tweaks
+            const layout = {
+                ...chartData.layout,
+                height: 350,
+                margin: { l: 100, r: 30, t: 40, b: 40 },
+                paper_bgcolor: 'transparent',
+                plot_bgcolor: 'transparent',
+                font: { family: 'Inter, sans-serif', size: 11 },
+                hovermode: 'closest',
+                hoverlabel: {
+                    bgcolor: 'white',
+                    bordercolor: '#3A86FF',
+                    font: { family: 'Inter, sans-serif', size: 13, color: '#1A1A1A' }
+                }
+            };
+
+            // Add gradient color to bars
+            if (chartData.data[0]) {
+                const xValues = chartData.data[0].x;
+                chartData.data[0].marker = {
+                    color: xValues,
+                    colorscale: [[0, '#0F4C5C'], [0.5, '#2A9D8F'], [1, '#3A86FF']],
+                    showscale: false
+                };
+            }
+
+            Plotly.newPlot(container, chartData.data, layout, { responsive: true, displayModeBar: false });
+        } else {
+            container.innerHTML = '<div class="empty-state" style="height: 100%; display: flex; align-items: center; justify-content: center;"><p>No receiver data available</p></div>';
+        }
+    } catch (error) {
+        console.error('Error loading top receivers chart:', error);
+        container.innerHTML = '<div class="empty-state" style="height: 100%; display: flex; align-items: center; justify-content: center;"><p>Failed to load receiver data</p></div>';
+    }
 }
 
 /**
  * Load alerts
  */
 async function loadAlerts() {
+    const alertsList = document.getElementById('alertsList');
+    if (!alertsList) return;
+
     try {
-        const alertsContainer = document.querySelector('.alerts-grid');
-        if (!alertsContainer) return;
+        const result = await api.getAlerts();
+        const alerts = result.data || result.alerts || [];
 
-        // Sample alert data - replace with API call when available
-        const alerts = [
-            {
-                title: 'High-Risk Invoice Detected',
-                description: 'Invoice INV-2024-001234 flagged as potential fraud',
-                time: '2 minutes ago',
-                severity: 'high',
-            },
-            {
-                title: 'Unusual Network Pattern',
-                description: 'Circular trade pattern detected involving 5 entities',
-                time: '15 minutes ago',
-                severity: 'high',
-            },
-            {
-                title: 'System Health Check',
-                description: 'All systems operational. Last update 30 seconds ago',
-                time: '30 seconds ago',
-                severity: 'info',
-            },
-        ];
+        if (alerts.length === 0) {
+            alertsList.innerHTML = '<div class="empty-state"><p>No active alerts</p></div>';
+            return;
+        }
 
-        alertsContainer.innerHTML = alerts
-            .map(
-                alert =>
-                    `
-            <div class="alert-item alert-${alert.severity}">
-                <div class="alert-icon">${alert.severity === 'high' ? '⚠️' : 'ℹ️'}</div>
-                <div class="alert-content">
-                    <div class="alert-title">${alert.title}</div>
-                    <div class="alert-description">${alert.description}</div>
-                    <div class="alert-time">${alert.time}</div>
+        alertsList.innerHTML = alerts.slice(0, 6).map(alert => {
+            const riskType = alert.title || 'Suspicious Activity';
+            const message = alert.message || 'Details not available';
+            const timeStr = formatTimeAgo(alert.timestamp || new Date());
+            const isHighRisk = alert.risk === 'high' || alert.severity === 'high';
+            const iconColor = isHighRisk ? '#ef4444' : '#f59e0b';
+            const icon = isHighRisk ? 'fa-bolt' : 'fa-exclamation-triangle';
+
+            return `
+                <div class="alert-item" onclick="window.location.href='/companies'" style="cursor: pointer;">
+                    <div class="alert-icon-wrap" style="color: ${iconColor};">
+                        <i class="fas ${icon}"></i>
+                    </div>
+                    <div class="alert-info">
+                        <h4>${riskType}</h4>
+                        <p>${message}</p>
+                        <div class="alert-time">${timeStr}</div>
+                    </div>
                 </div>
-            </div>
-        `,
-            )
-            .join('');
+            `;
+        }).join('');
+
     } catch (error) {
         console.error('Error loading alerts:', error);
+        alertsList.innerHTML = '<div class="error-state"><p>Could not load alerts</p></div>';
+    }
+}
+
+/**
+ * Format timestamp to relative time
+ */
+function formatTimeAgo(dateString) {
+    try {
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / 60000);
+
+        if (diffMins < 60) return `${diffMins}m ago`;
+        const diffHours = Math.floor(diffMins / 60);
+        if (diffHours < 24) return `${diffHours}h ago`;
+        return `${Math.floor(diffHours / 24)}d ago`;
+    } catch (e) {
+        return 'Recently';
     }
 }
 
@@ -469,46 +480,53 @@ async function loadAlerts() {
  */
 async function loadHighRiskCompanies() {
     try {
-        const tableBody = document.querySelector('.high-risk-table tbody');
+        const tableBody = document.getElementById('topCompaniesTable');
         if (!tableBody) return;
 
-        showSpinner(tableBody.parentElement);
+        // Try to get high-risk companies from API
+        let companies = [];
+        try {
+            const response = await api.getHighRiskCompanies();
+            companies = response.companies || response || [];
+        } catch (e) {
+            // Fallback to summary data if available
+            if (dashboardState.fraudSummary && dashboardState.fraudSummary.high_risk_companies) {
+                companies = dashboardState.fraudSummary.high_risk_companies;
+            }
+        }
 
-        // For now, load from fraud summary
-        const summary = dashboardState.fraudSummary;
-        if (!summary || !summary.high_risk_companies) {
-            hideSpinner();
+        if (companies.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="6" class="text-center">No high-risk companies found. Upload data to start analysis.</td></tr>';
             return;
         }
 
-        const rows = summary.high_risk_companies
-            .map(
-                company => `
-            <tr>
-                <td>${company.gstin}</td>
-                <td>${company.name}</td>
-                <td>${company.risk_score.toFixed(2)}</td>
-                <td>${getRiskLevelBadge(company.risk_score).level}</td>
-                <td>
-                    <button class="btn btn-small" onclick="viewCompanyDetails('${company.gstin}')">
-                        View Details
-                    </button>
-                </td>
-            </tr>
-        `,
-            )
-            .join('');
+        const rows = companies.slice(0, 10).map(company => {
+            const riskScore = company.risk_score || company.fraud_probability || 0;
+            const riskInfo = getRiskLevelBadge(riskScore);
+            return `
+                <tr>
+                    <td><span class="invoice-link">${company.gstin || company.company_id || 'N/A'}</span></td>
+                    <td>${company.name || company.company_name || 'Unknown'}</td>
+                    <td>${(riskScore * 100).toFixed(1)}%</td>
+                    <td><span class="status-badge ${riskInfo.class}">${riskInfo.level}</span></td>
+                    <td>${company.invoice_count || company.total_invoices || 0}</td>
+                    <td>
+                        <div class="action-icons">
+                            <button class="action-icon" onclick="viewCompanyDetails('${company.gstin || company.company_id}')">👁️</button>
+                            <button class="action-icon" onclick="flagCompany('${company.gstin || company.company_id}')">🚩</button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
 
-        if (rows) {
-            tableBody.innerHTML = rows;
-        } else {
-            tableBody.innerHTML = '<tr><td colspan="5" class="text-center">No high-risk companies found</td></tr>';
-        }
-
-        hideSpinner();
+        tableBody.innerHTML = rows;
     } catch (error) {
         console.error('Error loading high-risk companies:', error);
-        hideSpinner();
+        const tableBody = document.getElementById('topCompaniesTable');
+        if (tableBody) {
+            tableBody.innerHTML = '<tr><td colspan="6" class="text-center">Error loading data. Please check backend connection.</td></tr>';
+        }
     }
 }
 
@@ -517,50 +535,75 @@ async function loadHighRiskCompanies() {
  */
 function setupEventListeners() {
     // Refresh button
-    const refreshBtn = document.querySelector('.btn-refresh');
-    if (refreshBtn) {
-        refreshBtn.addEventListener('click', () => {
+    const refreshBtns = document.querySelectorAll('.btn-refresh, [onclick="refreshData()"]');
+    refreshBtns.forEach(btn => {
+        btn.onclick = () => {
+            showNotification('Refreshing data...', 'info', 1500);
             loadDashboardData();
-        });
-    }
+        };
+    });
 
     // Chart filter dropdowns
     const chartFilters = document.querySelectorAll('.chart-filters select');
     chartFilters.forEach(filter => {
         filter.addEventListener('change', (e) => {
-            console.log(`Filter changed: ${e.target.name} = ${e.target.value}`);
+            console.log(`Filter changed: ${e.target.id} = ${e.target.value}`);
             loadCharts();
         });
     });
 }
 
 /**
+ * Refresh data - called from HTML
+ */
+function refreshData() {
+    showNotification('Refreshing data...', 'info', 1500);
+    loadDashboardData();
+}
+
+/**
  * View company details
  */
-function viewCompanyDetails(gstin) {
-    // Navigate to company explorer with GSTIN parameter
-    window.location.href = `/company-explorer.html?gstin=${gstin}`;
+function viewCompanyDetails(companyId) {
+    window.location.href = `company-explorer.html?gstin=${companyId}`;
 }
 
 /**
- * Navigate to upload center
+ * Flag company for investigation
  */
-function goToUploadCenter() {
-    window.location.href = '/upload.html';
+function flagCompany(companyId) {
+    showNotification(`Company ${companyId} flagged for investigation`, 'warning');
 }
 
 /**
- * Navigate to graph visualization
+ * Investigate alert
  */
-function goToGraphVisualization() {
-    window.location.href = '/graph-visualizer.html';
+function investigateAlert(button) {
+    const alertItem = button.closest('.alert-item');
+    const title = alertItem.querySelector('.alert-title').textContent;
+    showNotification(`Investigating: ${title}`, 'info');
 }
 
 /**
- * Navigate to reports
+ * Toggle chart options (placeholder)
  */
-function goToReports() {
-    window.location.href = '/reports.html';
+function toggleChartOptions(button) {
+    showNotification('Chart options coming soon', 'info', 2000);
+}
+
+/**
+ * User profile functions
+ */
+function viewProfile() {
+    showNotification('Profile page coming soon', 'info');
+}
+
+function changePassword() {
+    showNotification('Password change coming soon', 'info');
+}
+
+function logout() {
+    logoutUser();
 }
 
 /**
@@ -571,3 +614,627 @@ window.addEventListener('beforeunload', () => {
         clearInterval(dashboardState.refreshInterval);
     }
 });
+
+// Make functions globally available
+window.refreshData = refreshData;
+window.viewCompanyDetails = viewCompanyDetails;
+window.flagCompany = flagCompany;
+window.investigateAlert = investigateAlert;
+window.toggleChartOptions = toggleChartOptions;
+window.viewProfile = viewProfile;
+window.changePassword = changePassword;
+window.logout = logout;
+// ============================================================================
+// CHATBOT FUNCTIONS
+// ============================================================================
+
+/**
+ * Send a chat message to the backend
+ */
+async function sendChatMessage() {
+    const input = document.getElementById('chatInput');
+    const message = input.value.trim();
+
+    if (!message) return;
+
+    // Clear input
+    input.value = '';
+
+    // Add user message to chat
+    addChatMessage(message, 'user');
+
+    // Show typing indicator
+    showTypingIndicator();
+
+    try {
+        const response = await fetch(`${api.baseURL}/api/chat`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ message })
+        });
+
+        const data = await response.json();
+
+        // Remove typing indicator
+        removeTypingIndicator();
+
+        // Add bot response
+        addChatMessage(data.response, 'bot', data.type);
+
+    } catch (error) {
+        console.error('Chat error:', error);
+        removeTypingIndicator();
+        addChatMessage('Sorry, I encountered an error. Please try again.', 'bot', 'error');
+    }
+}
+
+/**
+ * Add a message to the chat container
+ */
+function addChatMessage(text, sender, type = 'info') {
+    const chatMessages = document.getElementById('chatMessages');
+    if (!chatMessages) return;
+
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `chat-message ${sender}`;
+
+    const avatar = sender === 'bot' ? '🤖' : '👤';
+    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    // Convert markdown-like formatting to HTML
+    let formattedText = text
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\n/g, '<br>');
+
+    messageDiv.innerHTML = `
+        <div class="message-avatar">${avatar}</div>
+        <div class="message-content ${type}">
+            <p>${formattedText}</p>
+            <span class="message-time">${time}</span>
+        </div>
+    `;
+
+    chatMessages.appendChild(messageDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+/**
+ * Show typing indicator
+ */
+function showTypingIndicator() {
+    const chatMessages = document.getElementById('chatMessages');
+    if (!chatMessages) return;
+
+    const typingDiv = document.createElement('div');
+    typingDiv.className = 'chat-message bot';
+    typingDiv.id = 'typingIndicator';
+    typingDiv.innerHTML = `
+        <div class="message-avatar">🤖</div>
+        <div class="message-content">
+            <div class="typing-indicator">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+    `;
+
+    chatMessages.appendChild(typingDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+/**
+ * Remove typing indicator
+ */
+function removeTypingIndicator() {
+    const typing = document.getElementById('typingIndicator');
+    if (typing) {
+        typing.remove();
+    }
+}
+
+/**
+ * Handle Enter key in chat input
+ */
+function handleChatKeypress(event) {
+    if (event.key === 'Enter') {
+        sendChatMessage();
+    }
+}
+
+/**
+ * Quick chat buttons
+ */
+function quickChat(message) {
+    const input = document.getElementById('chatInput');
+    if (input) {
+        input.value = message;
+        sendChatMessage();
+    }
+}
+
+// ============================================================================
+// NEW ENHANCED FEATURES
+// ============================================================================
+
+/**
+ * Load Fraud Risk Gauge
+ */
+async function loadFraudGauge() {
+    const container = document.getElementById('fraudGauge');
+    const valueDisplay = document.getElementById('gaugeValue');
+    if (!container) return;
+
+    try {
+        const response = await fetch(`${api.baseURL}/api/fraud-gauge`);
+        const data = await response.json();
+
+        if (data.error) throw new Error(data.error);
+
+        const gaugeValue = data.gauge_value || 0;
+        const color = data.color || '#ef4444';
+
+        // Update value display
+        if (valueDisplay) {
+            valueDisplay.textContent = `${gaugeValue}%`;
+            valueDisplay.style.color = color;
+        }
+
+        // Create gauge using Plotly
+        const gaugeData = [{
+            type: "indicator",
+            mode: "gauge+number",
+            value: gaugeValue,
+            gauge: {
+                axis: { range: [0, 100], tickwidth: 1, tickcolor: "#334155" },
+                bar: { color: color },
+                bgcolor: "white",
+                borderwidth: 2,
+                bordercolor: "#e2e8f0",
+                steps: [
+                    { range: [0, 30], color: "rgba(34, 197, 94, 0.2)" },
+                    { range: [30, 60], color: "rgba(245, 158, 11, 0.2)" },
+                    { range: [60, 100], color: "rgba(239, 68, 68, 0.2)" }
+                ],
+                threshold: {
+                    line: { color: "#1e293b", width: 4 },
+                    thickness: 0.75,
+                    value: gaugeValue
+                }
+            },
+            number: { suffix: "%", font: { size: 16 } }
+        }];
+
+        const layout = {
+            width: 150,
+            height: 100,
+            margin: { t: 10, r: 10, l: 10, b: 10 },
+            paper_bgcolor: "transparent",
+            font: { family: "Inter, sans-serif" }
+        };
+
+        Plotly.newPlot(container, gaugeData, layout, { displayModeBar: false, responsive: true });
+    } catch (error) {
+        console.error('Error loading fraud gauge:', error);
+        if (valueDisplay) valueDisplay.textContent = 'N/A';
+    }
+}
+
+/**
+ * Load Data Quality Banner
+ */
+async function loadDataQuality() {
+    try {
+        const response = await fetch(`${api.baseURL}/api/data-quality`);
+        const data = await response.json();
+
+        if (data.error) throw new Error(data.error);
+
+        // Update UI elements
+        const qualityStatus = document.getElementById('dataQualityStatus');
+        const companyCount = document.getElementById('companyCount');
+        const invoiceCount = document.getElementById('invoiceCount');
+        const qualityBar = document.getElementById('qualityBar');
+        const qualityPercent = document.getElementById('qualityPercent');
+
+        if (qualityStatus) qualityStatus.textContent = `Status: ${data.status?.toUpperCase() || 'Unknown'} • ${data.issues?.length || 0} issues detected`;
+        if (companyCount) companyCount.textContent = formatNumber(data.metrics?.companies?.total_records || 0);
+        if (invoiceCount) invoiceCount.textContent = formatNumber(data.metrics?.invoices?.total_records || 0);
+        if (qualityBar) qualityBar.style.width = `${data.completeness_score || 0}%`;
+        if (qualityPercent) qualityPercent.textContent = `${data.completeness_score || 0}%`;
+
+        // Update banner color based on status
+        const banner = document.getElementById('dataQualityBanner');
+        if (banner && data.color) {
+            if (data.status === 'excellent') {
+                banner.style.background = 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)';
+            } else if (data.status === 'good') {
+                banner.style.background = 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)';
+            } else if (data.status === 'fair') {
+                banner.style.background = 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)';
+            } else {
+                banner.style.background = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
+            }
+        }
+    } catch (error) {
+        console.error('Error loading data quality:', error);
+    }
+}
+
+/**
+ * Load Geographic Risk Map
+ */
+let geoMap = null;
+async function loadGeographicMap() {
+    const container = document.getElementById('geographicMap');
+    if (!container) return;
+
+    try {
+        const response = await fetch(`${api.baseURL}/api/geographic-risk`);
+        const data = await response.json();
+
+        if (data.error) throw new Error(data.error);
+
+        // Initialize map if not already done
+        if (!geoMap) {
+            geoMap = L.map('geographicMap').setView([20.5937, 78.9629], 5);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(geoMap);
+        }
+
+        // Clear existing markers
+        geoMap.eachLayer(layer => {
+            if (layer instanceof L.CircleMarker) {
+                geoMap.removeLayer(layer);
+            }
+        });
+
+        // Add markers for each location
+        if (data.locations && data.locations.length > 0) {
+            data.locations.forEach(loc => {
+                const color = loc.risk_level === 'high' ? '#ef4444' :
+                    loc.risk_level === 'medium' ? '#f59e0b' : '#22c55e';
+                const radius = Math.min(20, Math.max(8, loc.company_count / 5));
+
+                L.circleMarker([loc.lat, loc.lng], {
+                    radius: radius,
+                    fillColor: color,
+                    color: '#fff',
+                    weight: 2,
+                    opacity: 1,
+                    fillOpacity: 0.7
+                }).addTo(geoMap)
+                    .bindPopup(`
+                      <strong>${loc.location}</strong><br>
+                      Companies: ${loc.company_count}<br>
+                      High Risk: ${loc.high_risk_count}<br>
+                      Avg Risk: ${(loc.avg_risk * 100).toFixed(1)}%
+                  `);
+            });
+        }
+    } catch (error) {
+        console.error('Error loading geographic map:', error);
+        container.innerHTML = '<div class="empty-state"><p>Geographic data unavailable</p></div>';
+    }
+}
+
+/**
+ * Load Fraud Pattern Word Cloud
+ */
+async function loadWordCloud() {
+    const container = document.getElementById('fraudWordCloud');
+    if (!container) return;
+
+    try {
+        const response = await fetch(`${api.baseURL}/api/fraud-patterns`);
+        const data = await response.json();
+
+        if (data.error) throw new Error(data.error);
+
+        if (!data.patterns || data.patterns.length === 0) {
+            container.innerHTML = '<div class="empty-state"><p>No pattern data</p></div>';
+            return;
+        }
+
+        // Clear container
+        container.innerHTML = '';
+
+        const width = container.offsetWidth || 400;
+        const height = container.offsetHeight || 300;
+
+        // Scale font sizes
+        const maxValue = Math.max(...data.patterns.map(d => d.value));
+        const fontScale = d3.scaleLinear()
+            .domain([0, maxValue])
+            .range([14, 45]);
+
+        const colorScale = d3.scaleOrdinal()
+            .domain(data.patterns.map(d => d.text))
+            .range(['#ef4444', '#f59e0b', '#3b82f6', '#22c55e', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316']);
+
+        // Create word cloud layout
+        const layout = d3.layout.cloud()
+            .size([width, height])
+            .words(data.patterns.map(d => ({ text: d.text, size: fontScale(d.value), value: d.value })))
+            .padding(5)
+            .rotate(() => (~~(Math.random() * 2) * 90))
+            .font("Inter")
+            .fontSize(d => d.size)
+            .on("end", draw);
+
+        layout.start();
+
+        function draw(words) {
+            const svg = d3.select(container)
+                .append("svg")
+                .attr("width", width)
+                .attr("height", height)
+                .append("g")
+                .attr("transform", `translate(${width / 2},${height / 2})`);
+
+            svg.selectAll("text")
+                .data(words)
+                .enter()
+                .append("text")
+                .style("font-size", d => `${d.size}px`)
+                .style("font-family", "Inter, sans-serif")
+                .style("font-weight", "600")
+                .style("fill", d => colorScale(d.text))
+                .style("cursor", "pointer")
+                .attr("text-anchor", "middle")
+                .attr("transform", d => `translate(${d.x},${d.y}) rotate(${d.rotate})`)
+                .text(d => d.text)
+                .on("click", function (event, d) {
+                    // Filter companies by pattern when clicked
+                    showNotification(`Filtering by: ${d.text}`, 'info');
+                });
+        }
+    } catch (error) {
+        console.error('Error loading word cloud:', error);
+        container.innerHTML = '<div class="empty-state"><p>Pattern analysis unavailable</p></div>';
+    }
+}
+
+/**
+ * Load Sankey Diagram
+ */
+async function loadSankeyDiagram() {
+    const container = document.getElementById('sankeyDiagram');
+    if (!container) return;
+
+    try {
+        const response = await fetch(`${api.baseURL}/api/sankey-flow`);
+        const data = await response.json();
+
+        if (data.error) throw new Error(data.error);
+
+        if (!data.nodes || data.nodes.length === 0) {
+            container.innerHTML = '<div class="empty-state"><p>No transaction flow data</p></div>';
+            return;
+        }
+
+        const sankeyData = {
+            type: "sankey",
+            orientation: "h",
+            node: {
+                pad: 15,
+                thickness: 20,
+                line: { color: "black", width: 0.5 },
+                label: data.nodes.map(n => n.name),
+                color: data.nodes.map(n => n.color),
+                hovertemplate: '<b>%{label}</b><br>Risk: %{value:.1%}<extra></extra>'
+            },
+            link: {
+                source: data.links.map(l => l.source),
+                target: data.links.map(l => l.target),
+                value: data.links.map(l => l.value),
+                color: data.links.map(l => l.color),
+                hovertemplate: '<b>Transaction</b><br>From: %{source.label}<br>To: %{target.label}<br>Amount: ₹%{value:,.0f}<extra></extra>'
+            }
+        };
+
+        const layout = {
+            title: "",
+            font: { size: 10, family: "Inter, sans-serif" },
+            height: 350,
+            margin: { l: 10, r: 10, t: 10, b: 10 },
+            paper_bgcolor: "transparent",
+            hoverlabel: {
+                bgcolor: 'white',
+                bordercolor: '#F77F00',
+                font: { family: 'Inter, sans-serif', size: 12, color: '#1A1A1A' }
+            }
+        };
+
+        Plotly.newPlot(container, [sankeyData], layout, { responsive: true, displayModeBar: false });
+    } catch (error) {
+        console.error('Error loading Sankey diagram:', error);
+        container.innerHTML = '<div class="empty-state"><p>Transaction flow unavailable</p></div>';
+    }
+}
+
+/**
+ * Load Fraud Trend Chart
+ */
+async function loadFraudTrends() {
+    const container = document.getElementById('fraudTrendChart');
+    if (!container) return;
+
+    try {
+        const response = await fetch(`${api.baseURL}/api/fraud-trends`);
+        const data = await response.json();
+
+        if (data.error) throw new Error(data.error);
+
+        if (!data.dates || data.dates.length === 0) {
+            container.innerHTML = '<div class="empty-state"><p>No trend data available</p></div>';
+            return;
+        }
+
+        const traces = [
+            {
+                x: data.dates,
+                y: data.fraud_counts,
+                type: 'scatter',
+                mode: 'lines+markers',
+                name: 'Fraud Cases',
+                line: { color: '#ef4444', width: 3 },
+                marker: { size: 8 },
+                hovertemplate: '<b>%{x}</b><br>Fraud Cases: %{y:,}<extra></extra>'
+            },
+            {
+                x: data.dates,
+                y: data.fraud_rate,
+                type: 'scatter',
+                mode: 'lines',
+                name: 'Fraud Rate (%)',
+                line: { color: '#3b82f6', width: 2, dash: 'dot' },
+                yaxis: 'y2',
+                hovertemplate: '<b>%{x}</b><br>Fraud Rate: %{y:.1f}%<extra></extra>'
+            }
+        ];
+
+        const layout = {
+            height: 350,
+            margin: { l: 50, r: 50, t: 20, b: 60 },
+            paper_bgcolor: 'transparent',
+            plot_bgcolor: 'transparent',
+            font: { family: 'Inter, sans-serif' },
+            xaxis: { title: 'Period', tickangle: -45 },
+            yaxis: { title: 'Fraud Cases', side: 'left' },
+            yaxis2: { title: 'Rate (%)', side: 'right', overlaying: 'y' },
+            legend: { x: 0, y: 1.15, orientation: 'h' },
+            showlegend: true,
+            hovermode: 'x unified',
+            hoverlabel: {
+                bgcolor: 'white',
+                bordercolor: '#3b82f6',
+                font: { family: 'Inter, sans-serif', size: 13, color: '#1A1A1A' }
+            }
+        };
+
+        Plotly.newPlot(container, traces, layout, { responsive: true, displayModeBar: false });
+    } catch (error) {
+        console.error('Error loading fraud trends:', error);
+        container.innerHTML = '<div class="empty-state"><p>Trend analysis unavailable</p></div>';
+    }
+}
+
+/**
+ * Advanced Search Function
+ */
+async function performAdvancedSearch() {
+    const searchData = {
+        gstin: document.getElementById('searchGstin')?.value || '',
+        company_name: document.getElementById('searchCompanyName')?.value || '',
+        risk_level: document.getElementById('searchRiskLevel')?.value || '',
+        location: document.getElementById('searchLocation')?.value || '',
+        min_fraud_score: document.getElementById('searchMinScore')?.value ? parseFloat(document.getElementById('searchMinScore').value) : null,
+        max_fraud_score: document.getElementById('searchMaxScore')?.value ? parseFloat(document.getElementById('searchMaxScore').value) : null,
+        limit: 50
+    };
+
+    // Remove null/empty values
+    Object.keys(searchData).forEach(key => {
+        if (searchData[key] === '' || searchData[key] === null) {
+            delete searchData[key];
+        }
+    });
+
+    try {
+        const response = await fetch(`${api.baseURL}/api/advanced-search`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(searchData)
+        });
+
+        const data = await response.json();
+
+        if (data.error) throw new Error(data.error);
+
+        // Show results
+        const resultsDiv = document.getElementById('searchResults');
+        const countSpan = document.getElementById('searchResultCount');
+        const tableDiv = document.getElementById('searchResultsTable');
+
+        if (resultsDiv) resultsDiv.style.display = 'block';
+        if (countSpan) countSpan.textContent = data.total || 0;
+
+        if (data.results && data.results.length > 0) {
+            let tableHTML = `
+                <table class="data-table" style="width: 100%;">
+                    <thead>
+                        <tr>
+                            <th>GSTIN</th>
+                            <th>Company Name</th>
+                            <th>Fraud Score</th>
+                            <th>Risk Level</th>
+                            <th>Location</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            data.results.forEach(company => {
+                const score = company.fraud_probability || 0;
+                const riskInfo = getRiskLevelBadge(score);
+                tableHTML += `
+                    <tr>
+                        <td>${company.gstin || company.company_id || 'N/A'}</td>
+                        <td>${company.name || company.company_name || 'Unknown'}</td>
+                        <td>${(score * 100).toFixed(1)}%</td>
+                        <td><span class="status-badge ${riskInfo.class}">${riskInfo.level}</span></td>
+                        <td>${company.location || company.city || 'N/A'}</td>
+                        <td>
+                            <button class="action-icon" onclick="viewCompanyDetails('${company.gstin || company.company_id}')">👁️</button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            tableHTML += '</tbody></table>';
+            if (tableDiv) tableDiv.innerHTML = tableHTML;
+        } else {
+            if (tableDiv) tableDiv.innerHTML = '<p style="text-align: center; padding: 20px; color: #64748b;">No companies found matching your criteria.</p>';
+        }
+
+        showNotification(`Found ${data.total} results`, 'success');
+    } catch (error) {
+        console.error('Error performing search:', error);
+        showNotification('Search failed: ' + error.message, 'error');
+    }
+}
+
+// Update loadDashboardData to include new features
+const originalLoadDashboardData = loadDashboardData;
+loadDashboardData = async function () {
+    await originalLoadDashboardData.call(this);
+
+    // Load new enhanced features
+    await Promise.all([
+        loadFraudGauge(),
+        loadDataQuality(),
+        loadGeographicMap(),
+        loadWordCloud(),
+        loadSankeyDiagram(),
+        loadFraudTrends()
+    ]);
+};
+
+// Make new functions globally available
+window.performAdvancedSearch = performAdvancedSearch;
+window.loadFraudGauge = loadFraudGauge;
+window.loadDataQuality = loadDataQuality;
+window.loadGeographicMap = loadGeographicMap;
+window.loadWordCloud = loadWordCloud;
+window.loadSankeyDiagram = loadSankeyDiagram;
+window.loadFraudTrends = loadFraudTrends;
+
+// Make chatbot functions globally available
+window.sendChatMessage = sendChatMessage;
+window.handleChatKeypress = handleChatKeypress;
+window.quickChat = quickChat;
