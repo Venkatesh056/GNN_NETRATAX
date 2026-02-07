@@ -402,5 +402,44 @@ print(f"High-Risk Companies (prob > 0.5): {(fraud_proba > 0.5).sum()}")
 print(f"High-Risk Companies (prob > 0.7): {(fraud_proba > 0.7).sum()}")
 print("=" * 80)
 print("\nModel and data are ready for dashboard!")
-print("Restart your Flask server to see the results.")
+
+# ============================================================================
+# 9. TRIGGER DASHBOARD RELOAD (OPTIONAL)
+# ============================================================================
+
+print("\n[Optional] Triggering dashboard reload...")
+try:
+    import requests
+    import os
+    
+    # Get backend URL from environment variable or use default
+    backend_url = os.getenv('BACKEND_URL', 'http://localhost:8000')
+    reload_endpoint = f"{backend_url}/api/model/reload"
+    
+    response = requests.post(reload_endpoint, timeout=10)
+    
+    if response.status_code == 200:
+        result = response.json()
+        print("✅ Dashboard reloaded successfully!")
+        print(f"   - Companies: {result['statistics']['companies']}")
+        print(f"   - Invoices: {result['statistics']['invoices']}")
+        print(f"   - Graph nodes: {result['statistics']['graph_nodes']}")
+        print(f"   - Fraud scores computed: {result['statistics']['fraud_scores_computed']}")
+        print("\nDashboard insights have been updated automatically!")
+    else:
+        print(f"⚠ Backend reload returned status {response.status_code}")
+        print("Please manually call POST /api/model/reload or restart the backend server.")
+
+except requests.exceptions.ConnectionError:
+    print(f"⚠ Backend server not running at {reload_endpoint}")
+    print("Start the backend server and call POST /api/model/reload to update dashboard insights.")
+except ImportError:
+    print("⚠ 'requests' library not installed")
+    print("Please install it: pip install requests")
+    print("Or manually call POST /api/model/reload after starting the backend.")
+except Exception as e:
+    print(f"⚠ Could not trigger automatic reload: {e}")
+    print("Please manually call POST /api/model/reload or restart the backend server.")
+
+print("\n" + "=" * 80)
 
